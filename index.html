@@ -58,29 +58,13 @@ body {
   font-weight: bold;
 }
 
-/* HINT */
-#hint {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #222;
-  color: #fff;
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 14px;
-  z-index: 11;
-  display: none;
-}
-
-/* NOTE ON MAP */
+/* NOTE */
 .note {
   position: absolute;
   width: 180px;
   height: 180px;
   cursor: pointer;
   transition: transform 0.25s ease;
-  transform-origin: center center;
 }
 
 .note.zoom {
@@ -101,6 +85,8 @@ body {
 }
 
 #canvas {
+  width: 400px;
+  height: 400px;
   border: 2px solid #000;
   background-size: cover;
   background-image: url("images/note-removebg-preview.png");
@@ -119,16 +105,16 @@ button {
 }
 </style>
 </head>
+
 <body>
 
-<!-- HOME SCREEN -->
+<!-- HOME -->
 <div id="home">
   <img src="images/Leave_A_Note-removebg-preview.png">
 </div>
 
-<!-- ADD NOTE BUTTON + HINT -->
+<!-- ADD BUTTON -->
 <div id="addNoteBtn" style="display:none;">ADD NOTE</div>
-<div id="hint">Tap on the map to place your note</div>
 
 <!-- MAP -->
 <div id="map-container">
@@ -150,8 +136,9 @@ button {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyBzk5p9naKjZndFHfqpldxGUMLBGzkDIsU",
   authDomain: "antianti-69313.firebaseapp.com",
@@ -159,16 +146,16 @@ const firebaseConfig = {
   projectId: "antianti-69313",
   storageBucket: "antianti-69313.firebasestorage.app",
   messagingSenderId: "147709968684",
-  appId: "1:147709968684:web:696108f146ecda9b5eec89",
-  measurementId: "G-WXRNC9P09F"
+  appId: "1:147709968684:web:696108f146ecda9b5eec89"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const notesRef = ref(db, "notes");
 
+/* ELEMENTS */
 const home = document.getElementById("home");
 const addNoteBtn = document.getElementById("addNoteBtn");
-const hint = document.getElementById("hint");
 const mapContainer = document.getElementById("map-container");
 const map = document.getElementById("map");
 const editor = document.getElementById("editor");
@@ -176,68 +163,35 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const colorPicker = document.getElementById("colorPicker");
 
+/* STATE */
 let tool = "draw";
 let drawing = false;
-let placingNote = false;
-let pendingNoteImage = null;
+let placingMode = false;
+let previewNote = null;
+let noteImageData = null;
 
-/* HOME SCREEN CLICK */
+/* HOME */
 home.onclick = () => {
   home.style.display = "none";
   addNoteBtn.style.display = "block";
 };
 
-/* ADD NOTE */
-addNoteBtn.onclick = () => openEditor();
-
-/* OPEN EDITOR – crop to visible note so you can't draw off it */
-function openEditor() {
+/* OPEN EDITOR */
+addNoteBtn.onclick = () => {
   editor.style.display = "flex";
 
   const bg = new Image();
   bg.src = "images/note-removebg-preview.png";
-
   bg.onload = () => {
-    const temp = document.createElement("canvas");
-    temp.width = bg.width;
-    temp.height = bg.height;
-    const tctx = temp.getContext("2d");
-    tctx.drawImage(bg, 0, 0);
-
-    const data = tctx.getImageData(0, 0, bg.width, bg.height).data;
-
-    let minX = bg.width, minY = bg.height, maxX = 0, maxY = 0;
-    for (let y = 0; y < bg.height; y++) {
-      for (let x = 0; x < bg.width; x++) {
-        const idx = (y * bg.width + x) * 4;
-        if (data[idx + 3] > 10) {
-          if (x < minX) minX = x;
-          if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-
-    const w = maxX - minX;
-    const h = maxY - minY;
-
-    canvas.width = w;
-    canvas.height = h;
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(bg, minX, minY, w, h, 0, 0, w, h);
-
-    ctx.beginPath();
-    ctx.rect(0, 0, w, h);
-    ctx.clip();
+    ctx.clearRect(0,0,400,400);
+    ctx.drawImage(bg, 0, 0, 400, 400);
   };
-}
+};
 
-/* TOOL SELECT */
-window.setTool = function(t) { tool = t; };
+/* TOOL */
+window.setTool = (t) => tool = t;
 
-/* DRAWING */
+/* DRAW */
 canvas.onmousedown = e => {
   drawing = true;
   ctx.beginPath();
@@ -246,24 +200,25 @@ canvas.onmousedown = e => {
 
 canvas.onmousemove = e => {
   if (!drawing) return;
+
   if (tool === "draw") {
     ctx.strokeStyle = colorPicker.value;
     ctx.lineWidth = 3;
-  } else if (tool === "erase") {
+  } else {
     ctx.strokeStyle = "white";
     ctx.lineWidth = 20;
   }
+
   ctx.lineTo(e.offsetX, e.offsetY);
   ctx.stroke();
 };
 
 canvas.onmouseup = () => drawing = false;
-canvas.onmouseleave = () => drawing = false;
 
-/* TEXT TOOL */
+/* TEXT */
 canvas.onclick = e => {
   if (tool === "text") {
-    let t = prompt("Enter text:");
+    const t = prompt("Text:");
     if (t) {
       ctx.fillStyle = colorPicker.value;
       ctx.font = "20px Arial";
@@ -272,101 +227,68 @@ canvas.onclick = e => {
   }
 };
 
-/* FINISH NOTE */
-window.finishNote = function() {
+/* FINISH */
+window.finishNote = () => {
   editor.style.display = "none";
-  pendingNoteImage = canvas.toDataURL();
-  placingNote = true;
-  hint.style.display = "block";
+  noteImageData = canvas.toDataURL();
+  placingMode = true;
+
+  previewNote = document.createElement("img");
+  previewNote.src = noteImageData;
+  previewNote.className = "note";
+  previewNote.style.opacity = "0.5";
+  map.appendChild(previewNote);
 };
 
-/* PLACE NOTE ON MAP + SAVE TO FIREBASE */
-function placeNoteAt(pageX, pageY) {
-  if (!placingNote || !pendingNoteImage) return;
+/* PREVIEW FOLLOW */
+mapContainer.addEventListener("mousemove", e => {
+  if (!placingMode || !previewNote) return;
 
   const rect = mapContainer.getBoundingClientRect();
-  const x = pageX - rect.left + mapContainer.scrollLeft - 90;
-  const y = pageY - rect.top + mapContainer.scrollTop - 90;
+  const x = e.pageX - rect.left + mapContainer.scrollLeft - 90;
+  const y = e.pageY - rect.top + mapContainer.scrollTop - 90;
 
-  const notesRef = ref(db, "notes");
-  const newNoteRef = push(notesRef);
+  previewNote.style.left = x + "px";
+  previewNote.style.top = y + "px";
+});
 
-  const noteData = { x, y, image: pendingNoteImage };
-  set(newNoteRef, noteData);
+/* PLACE */
+mapContainer.addEventListener("click", e => {
+  if (!placingMode) return;
 
-  createNoteElement(newNoteRef.key, noteData);
+  const rect = mapContainer.getBoundingClientRect();
+  const x = e.pageX - rect.left + mapContainer.scrollLeft - 90;
+  const y = e.pageY - rect.top + mapContainer.scrollTop - 90;
 
-  placingNote = false;
-  pendingNoteImage = null;
-  hint.style.display = "none";
-}
-
-/* CREATE NOTE DOM */
-function createNoteElement(id, data) {
-  const note = document.createElement("img");
-  note.src = data.image;
-  note.className = "note";
-  note.style.left = data.x + "px";
-  note.style.top = data.y + "px";
-  note.dataset.id = id;
-
-  note.addEventListener("click", e => {
-    e.stopPropagation();
-    note.classList.toggle("zoom");
+  push(notesRef, {
+    x: x,
+    y: y,
+    image: noteImageData
   });
 
-  makeDraggable(note);
-  map.appendChild(note);
-}
-
-/* DRAGGING + SAVE POSITION */
-function makeDraggable(el) {
-  let offsetX, offsetY;
-
-  el.onmousedown = e => {
-    e.stopPropagation();
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
-
-    document.onmousemove = ev => {
-      const rect = mapContainer.getBoundingClientRect();
-      const x = ev.pageX - rect.left + mapContainer.scrollLeft - offsetX;
-      const y = ev.pageY - rect.top + mapContainer.scrollTop - offsetY;
-      el.style.left = x + "px";
-      el.style.top = y + "px";
-    };
-
-    document.onmouseup = () => {
-      document.onmousemove = null;
-      const id = el.dataset.id;
-      if (id) {
-        update(ref(db, "notes/" + id), {
-          x: parseFloat(el.style.left),
-          y: parseFloat(el.style.top)
-        });
-      }
-    };
-  };
-}
-
-/* CLICK / TOUCH TO PLACE */
-mapContainer.addEventListener("click", e => {
-  if (placingNote) placeNoteAt(e.pageX, e.pageY);
+  placingMode = false;
+  if (previewNote) previewNote.remove();
 });
 
-mapContainer.addEventListener("touchstart", e => {
-  if (!placingNote) return;
-  const t = e.touches[0];
-  placeNoteAt(t.pageX, t.pageY);
-});
+/* LOAD NOTES */
+onValue(notesRef, snapshot => {
+  map.innerHTML = "";
 
-/* LOAD NOTES FROM FIREBASE */
-onValue(ref(db, "notes"), snapshot => {
-  const notes = snapshot.val();
-  document.querySelectorAll(".note").forEach(n => n.remove());
-  if (!notes) return;
-  Object.entries(notes).forEach(([id, data]) => {
-    createNoteElement(id, data);
+  snapshot.forEach(child => {
+    const data = child.val();
+
+    const note = document.createElement("img");
+    note.src = data.image;
+    note.className = "note";
+    note.style.left = data.x + "px";
+    note.style.top = data.y + "px";
+
+    note.onclick = e => {
+      e.stopPropagation();
+      note.classList.toggle("zoom");
+    };
+
+    map.appendChild(note);
   });
 });
 </script>
