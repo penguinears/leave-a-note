@@ -29,19 +29,18 @@ body {
 }
 
 /* MAP */
-#map {
-  position: absolute;
-  width: 4000px;
-  height: 4000px;
-  background: white;
-  overflow: visible;
-}
-
 #map-container {
   position: fixed;
   inset: 0;
   overflow: scroll;
   background: #f5f5f5;
+}
+
+#map {
+  position: relative;
+  width: 4000px;
+  height: 4000px;
+  background: white;
 }
 
 /* ADD NOTE BUTTON */
@@ -58,14 +57,19 @@ body {
   font-weight: bold;
 }
 
-/* NOTE FRAME */
+/* NOTE ON MAP */
 .note {
   position: absolute;
   width: 200px;
   height: 200px;
-  background-size: cover;
-  background-image: url('images/note-removebg-preview.png');
   cursor: pointer;
+  overflow: hidden;
+}
+
+.note img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* EDITOR OVERLAY */
@@ -97,6 +101,7 @@ button {
   cursor: pointer;
 }
 
+/* EXPANDED NOTE VIEW */
 #expanded {
   position: fixed;
   inset: 0;
@@ -111,6 +116,7 @@ button {
   width: 80%;
   max-width: 600px;
   border: 4px solid white;
+  background: white;
 }
 </style>
 </head>
@@ -148,10 +154,21 @@ button {
 </div>
 
 <script>
+const home = document.getElementById("home");
+const addNoteBtn = document.getElementById("addNoteBtn");
+const mapContainer = document.getElementById("map-container");
+const map = document.getElementById("map");
+const editor = document.getElementById("editor");
+const canvas = document.getElementById("canvas");
+const colorPicker = document.getElementById("colorPicker");
+const expanded = document.getElementById("expanded");
+const expandedImg = document.getElementById("expandedImg");
+
+let ctx = canvas.getContext("2d");
 let tool = "draw";
 let drawing = false;
-let ctx = canvas.getContext("2d");
-let currentNote = null;
+let pendingNoteImage = null; // dataURL waiting to be placed
+let placingNote = false;
 
 /* HOME SCREEN CLICK */
 home.onclick = () => {
@@ -167,6 +184,14 @@ addNoteBtn.onclick = () => {
 function openEditor() {
   editor.style.display = "flex";
   ctx.clearRect(0,0,400,400);
+
+  // draw the note image as the canvas background
+  const bg = new Image();
+  bg.src = "images/note-removebg-preview.png";
+  bg.onload = () => {
+    ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+  };
+
   tool = "draw";
 }
 
@@ -198,6 +223,7 @@ canvas.onmousemove = e => {
 };
 
 canvas.onmouseup = () => drawing = false;
+canvas.onmouseleave = () => drawing = false;
 
 /* TEXT TOOL */
 canvas.onclick = e => {
@@ -211,36 +237,70 @@ canvas.onclick = e => {
   }
 };
 
-/* FINISH NOTE */
+/* FINISH NOTE: go into placement mode */
 function finishNote() {
   editor.style.display = "none";
+  pendingNoteImage = canvas.toDataURL();
+  placingNote = true;
+}
 
-  let img = new Image();
-  img.src = canvas.toDataURL();
+/* PLACE NOTE ON MAP WHERE YOU TAP/CLICK */
+function placeNoteAt(pageX, pageY) {
+  if (!placingNote || !pendingNoteImage) return;
 
-  let note = document.createElement("div");
+  const rect = mapContainer.getBoundingClientRect();
+  const xOnMap = pageX - rect.left + mapContainer.scrollLeft;
+  const yOnMap = pageY - rect.top + mapContainer.scrollTop;
+
+  const note = document.createElement("div");
   note.className = "note";
-  note.style.left = (200 + Math.random()*500) + "px";
-  note.style.top = (200 + Math.random()*500) + "px";
-  note.style.backgroundImage = `url(${img.src})`;
+  note.style.left = (xOnMap - 100) + "px";
+  note.style.top = (yOnMap - 100) + "px";
 
-  note.onclick = () => expandNote(img.src);
+  const img = document.createElement("img");
+  img.src = pendingNoteImage;
+  note.appendChild(img);
+
+  note.addEventListener("click", e => {
+    e.stopPropagation();
+    expandNote(pendingNoteImage);
+  });
 
   makeDraggable(note);
   map.appendChild(note);
+
+  placingNote = false;
+  pendingNoteImage = null;
 }
+
+/* MAP CLICK/TAP HANDLERS FOR PLACEMENT */
+mapContainer.addEventListener("click", e => {
+  if (placingNote) {
+    placeNoteAt(e.pageX, e.pageY);
+  }
+});
+
+mapContainer.addEventListener("touchstart", e => {
+  if (!placingNote) return;
+  const t = e.touches[0];
+  placeNoteAt(t.pageX, t.pageY);
+});
 
 /* DRAGGING NOTES */
 function makeDraggable(el) {
   let offsetX, offsetY;
 
   el.onmousedown = e => {
+    e.stopPropagation();
     offsetX = e.offsetX;
     offsetY = e.offsetY;
 
     document.onmousemove = ev => {
-      el.style.left = (ev.pageX - offsetX) + "px";
-      el.style.top = (ev.pageY - offsetY) + "px";
+      const rect = mapContainer.getBoundingClientRect();
+      const xOnMap = ev.pageX - rect.left + mapContainer.scrollLeft;
+      const yOnMap = ev.pageY - rect.top + mapContainer.scrollTop;
+      el.style.left = (xOnMap - offsetX) + "px";
+      el.style.top = (yOnMap - offsetY) + "px";
     };
 
     document.onmouseup = () => {
