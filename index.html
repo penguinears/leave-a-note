@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+#<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@ body {
   font-family: Arial, sans-serif;
 }
 
-/* HOME */
+/* HOME SCREEN */
 #home {
   position: fixed;
   inset: 0;
@@ -44,7 +44,7 @@ body {
   background: white;
 }
 
-/* BUTTON */
+/* ADD NOTE BUTTON */
 #addNoteBtn {
   position: fixed;
   top: 20px;
@@ -58,11 +58,11 @@ body {
   font-weight: bold;
 }
 
-/* NOTES */
+/* NOTE ON MAP */
 .note {
   position: absolute;
-  width: 200px;
-  height: 200px;
+  width: 180px;
+  height: 180px;
   cursor: pointer;
   transition: transform 0.25s ease;
 }
@@ -70,12 +70,6 @@ body {
 .note.zoom {
   transform: scale(3);
   z-index: 9999;
-}
-
-/* PREVIEW */
-.note.preview {
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 /* EDITOR */
@@ -91,10 +85,11 @@ body {
 }
 
 #canvas {
-  width: 500px;
-  height: 500px;
-  border: none;
-  background: transparent;
+  width: 400px;
+  height: 400px;
+  border: 2px solid #000;
+  background-size: cover;
+  background-image: url("images/note-removebg-preview.png");
 }
 
 .tools {
@@ -110,21 +105,24 @@ button {
 }
 </style>
 </head>
-
 <body>
 
+<!-- HOME SCREEN -->
 <div id="home">
   <img src="images/Leave_A_Note-removebg-preview.png">
 </div>
 
+<!-- ADD NOTE BUTTON -->
 <div id="addNoteBtn" style="display:none;">ADD NOTE</div>
 
+<!-- MAP -->
 <div id="map-container">
   <div id="map"></div>
 </div>
 
+<!-- EDITOR -->
 <div id="editor">
-  <canvas id="canvas" width="500" height="500"></canvas>
+  <canvas id="canvas" width="400" height="400"></canvas>
 
   <div class="tools">
     <button onclick="setTool('draw')">Draw</button>
@@ -136,10 +134,10 @@ button {
 </div>
 
 <script type="module">
+/* ---------------- FIREBASE ---------------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyBzk5p9naKjZndFHfqpldxGUMLBGzkDIsU",
   authDomain: "antianti-69313.firebaseapp.com",
@@ -154,7 +152,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const notesRef = ref(db, "notes");
 
-/* ELEMENTS */
+/* ---------------- ELEMENTS ---------------- */
 const home = document.getElementById("home");
 const addNoteBtn = document.getElementById("addNoteBtn");
 const mapContainer = document.getElementById("map-container");
@@ -164,38 +162,36 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const colorPicker = document.getElementById("colorPicker");
 
-/* STATE */
+/* ---------------- STATE ---------------- */
 let tool = "draw";
 let drawing = false;
-let placing = false;
-let preview = null;
-let noteImage = null;
-let previewX = 0;
-let previewY = 0;
+let pendingNoteImage = null;
+let placingNote = false;
 
-/* HOME */
+/* ---------------- HOME ---------------- */
 home.onclick = () => {
   home.style.display = "none";
   addNoteBtn.style.display = "block";
 };
 
-/* OPEN EDITOR */
-addNoteBtn.onclick = () => {
+/* ---------------- OPEN EDITOR ---------------- */
+addNoteBtn.onclick = () => openEditor();
+
+function openEditor() {
   editor.style.display = "flex";
-  addNoteBtn.style.display = "none";
 
-  const img = new Image();
-  img.src = "images/note-removebg-preview.png";
-  img.onload = () => {
-    ctx.clearRect(0,0,500,500);
-    ctx.drawImage(img, 0, 0, 500, 500);
+  const bg = new Image();
+  bg.src = "images/note-removebg-preview.png";
+  bg.onload = () => {
+    ctx.clearRect(0,0,400,400);
+    ctx.drawImage(bg, 0, 0, 400, 400);
   };
-};
+}
 
-/* TOOL */
-window.setTool = (t) => tool = t;
+/* ---------------- TOOLS ---------------- */
+window.setTool = t => tool = t;
 
-/* DRAW */
+/* ---------------- DRAWING ---------------- */
 canvas.onmousedown = e => {
   drawing = true;
   ctx.beginPath();
@@ -205,8 +201,13 @@ canvas.onmousedown = e => {
 canvas.onmousemove = e => {
   if (!drawing) return;
 
-  ctx.strokeStyle = (tool === "erase") ? "white" : colorPicker.value;
-  ctx.lineWidth = (tool === "erase") ? 20 : 3;
+  if (tool === "draw") {
+    ctx.strokeStyle = colorPicker.value;
+    ctx.lineWidth = 3;
+  } else if (tool === "erase") {
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 20;
+  }
 
   ctx.lineTo(e.offsetX, e.offsetY);
   ctx.stroke();
@@ -214,65 +215,55 @@ canvas.onmousemove = e => {
 
 canvas.onmouseup = () => drawing = false;
 
-/* TEXT */
+/* ---------------- TEXT ---------------- */
 canvas.onclick = e => {
   if (tool === "text") {
-    const t = prompt("Text:");
+    let t = prompt("Enter text:");
     if (t) {
       ctx.fillStyle = colorPicker.value;
-      ctx.font = "24px Arial";
+      ctx.font = "20px Arial";
       ctx.fillText(t, e.offsetX, e.offsetY);
     }
   }
 };
 
-/* FINISH */
+/* ---------------- FINISH NOTE ---------------- */
 window.finishNote = () => {
   editor.style.display = "none";
-  addNoteBtn.style.display = "block";
-
-  noteImage = canvas.toDataURL();
-  placing = true;
-
-  preview = document.createElement("img");
-  preview.src = noteImage;
-  preview.className = "note preview";
-  preview.style.left = "0px";
-  preview.style.top = "0px";
-  map.appendChild(preview);
+  pendingNoteImage = canvas.toDataURL();
+  placingNote = true;
 };
 
-/* PREVIEW MOVE – NEW SYSTEM */
-mapContainer.addEventListener("mousemove", e => {
-  if (!placing || !preview) return;
+/* ---------------- PLACE NOTE ---------------- */
+function placeNoteAt(pageX, pageY) {
+  if (!placingNote) return;
 
   const rect = mapContainer.getBoundingClientRect();
-  const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
-  const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
+  const x = pageX - rect.left + mapContainer.scrollLeft - 90;
+  const y = pageY - rect.top + mapContainer.scrollTop - 90;
 
-  previewX = x;
-  previewY = y;
+  // SAVE TO FIREBASE
+  push(notesRef, { x, y, image: pendingNoteImage });
 
-  preview.style.left = x + "px";
-  preview.style.top = y + "px";
-});
+  placingNote = false;
+  pendingNoteImage = null;
+}
 
-/* PLACE – NEW SYSTEM */
+/* CLICK */
 mapContainer.addEventListener("click", e => {
-  if (!placing) return;
-
-  push(notesRef, { x: previewX, y: previewY, image: noteImage });
-
-  placing = false;
-  if (preview) {
-    preview.remove();
-    preview = null;
-  }
+  if (placingNote) placeNoteAt(e.pageX, e.pageY);
 });
 
-/* LOAD NOTES */
+/* TOUCH */
+mapContainer.addEventListener("touchstart", e => {
+  if (!placingNote) return;
+  const t = e.touches[0];
+  placeNoteAt(t.pageX, t.pageY);
+});
+
+/* ---------------- LOAD NOTES FROM FIREBASE ---------------- */
 onValue(notesRef, snapshot => {
-  map.querySelectorAll(".note:not(.preview)").forEach(n => n.remove());
+  map.innerHTML = ""; // clear all notes
 
   snapshot.forEach(child => {
     const d = child.val();
