@@ -13,7 +13,7 @@ body {
   font-family: Arial, sans-serif;
 }
 
-/* HOME */
+/* HOME SCREEN */
 #home {
   position: fixed;
   inset: 0;
@@ -45,7 +45,7 @@ body {
   background: white;
 }
 
-/* BUTTON */
+/* ADD NOTE BUTTON */
 #addNoteBtn {
   position: fixed;
   top: 20px;
@@ -59,12 +59,13 @@ body {
   font-weight: bold;
 }
 
-/* NOTES */
+/* NOTE */
 .note {
   position: absolute;
   width: 200px;
   height: 200px;
   cursor: pointer;
+  transition: transform 0.25s ease;
 }
 
 .note.zoom {
@@ -101,6 +102,7 @@ body {
   width: 500px;
   height: 500px;
   background: transparent;
+  border: none;
 }
 
 .tools {
@@ -110,7 +112,9 @@ body {
 }
 
 button {
-  padding: 10px;
+  padding: 10px 15px;
+  font-size: 16px;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -241,6 +245,39 @@ canvas.onclick = e => {
   }
 };
 
+/* CREATE NOTE ELEMENT */
+function createNote(id, d) {
+  if (notesCache.has(id)) return;
+
+  const note = document.createElement("div");
+  note.className = "note";
+  note.style.left = d.x + "px";
+  note.style.top = d.y + "px";
+
+  const img = document.createElement("img");
+  img.src = d.image;
+  img.style.width = "100%";
+
+  const report = document.createElement("div");
+  report.className = "reportBtn";
+  report.innerHTML = `<i class="fa-solid fa-flag" style="color:red;"></i>`;
+
+  report.onclick = ev => {
+    ev.stopPropagation();
+    update(ref(db, "notes/" + id), { reported: true });
+  };
+
+  note.appendChild(img);
+  note.appendChild(report);
+
+  note.onclick = () => {
+    note.classList.toggle("zoom");
+  };
+
+  map.appendChild(note);
+  notesCache.set(id, note);
+}
+
 /* FINISH */
 window.finishNote = () => {
   editor.style.display = "none";
@@ -258,7 +295,7 @@ window.finishNote = () => {
 
 /* PREVIEW MOVE */
 mapContainer.addEventListener("mousemove", e => {
-  if (!placing) return;
+  if (!placing || !preview) return;
 
   const rect = mapContainer.getBoundingClientRect();
   const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
@@ -268,7 +305,7 @@ mapContainer.addEventListener("mousemove", e => {
   preview.style.top = y + "px";
 });
 
-/* PLACE */
+/* PLACE (FIXED PROPERLY) */
 mapContainer.addEventListener("click", e => {
   if (!placing) return;
 
@@ -276,14 +313,13 @@ mapContainer.addEventListener("click", e => {
   const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
   const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
 
-  const newRef = push(notesRef);
+  const refPush = push(notesRef);
+  const id = refPush.key;
 
-  update(newRef, {
-    x,
-    y,
-    image: noteImage,
-    reported: false
-  });
+  const data = { x, y, image: noteImage, reported: false };
+
+  createNote(id, data); // instant render
+  update(refPush, data); // save
 
   placing = false;
   if (preview) preview.remove();
@@ -292,38 +328,7 @@ mapContainer.addEventListener("click", e => {
 /* LOAD */
 onValue(notesRef, snapshot => {
   snapshot.forEach(child => {
-    const id = child.key;
-    const d = child.val();
-
-    if (notesCache.has(id)) return;
-
-    const note = document.createElement("div");
-    note.className = "note";
-    note.style.left = d.x + "px";
-    note.style.top = d.y + "px";
-
-    const img = document.createElement("img");
-    img.src = d.image;
-    img.style.width = "100%";
-
-    const report = document.createElement("div");
-    report.className = "reportBtn";
-    report.innerHTML = `<i class="fa-solid fa-flag" style="color:red;"></i>`;
-
-    report.onclick = ev => {
-      ev.stopPropagation();
-      update(ref(db, "notes/" + id), { reported: true });
-    };
-
-    note.appendChild(img);
-    note.appendChild(report);
-
-    note.onclick = () => {
-      note.classList.toggle("zoom");
-    };
-
-    map.appendChild(note);
-    notesCache.set(id, note);
+    createNote(child.key, child.val());
   });
 });
 </script>
