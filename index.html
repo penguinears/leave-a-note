@@ -170,6 +170,8 @@ let drawing = false;
 let placing = false;
 let preview = null;
 let noteImage = null;
+let previewX = 0;
+let previewY = 0;
 
 /* HOME */
 home.onclick = () => {
@@ -235,10 +237,12 @@ window.finishNote = () => {
   preview = document.createElement("img");
   preview.src = noteImage;
   preview.className = "note preview";
+  preview.style.left = "0px";
+  preview.style.top = "0px";
   map.appendChild(preview);
 };
 
-/* PREVIEW MOVE */
+/* PREVIEW MOVE – NEW SYSTEM */
 mapContainer.addEventListener("mousemove", e => {
   if (!placing || !preview) return;
 
@@ -246,22 +250,24 @@ mapContainer.addEventListener("mousemove", e => {
   const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
   const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
 
+  previewX = x;
+  previewY = y;
+
   preview.style.left = x + "px";
   preview.style.top = y + "px";
 });
 
-/* PLACE */
+/* PLACE – NEW SYSTEM */
 mapContainer.addEventListener("click", e => {
   if (!placing) return;
 
-  const rect = mapContainer.getBoundingClientRect();
-  const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
-  const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
-
-  push(notesRef, { x, y, image: noteImage });
+  push(notesRef, { x: previewX, y: previewY, image: noteImage });
 
   placing = false;
-  if (preview) preview.remove();
+  if (preview) {
+    preview.remove();
+    preview = null;
+  }
 });
 
 /* LOAD NOTES */
