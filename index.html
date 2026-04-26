@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <title>Leave A Note</title>
 
+<!-- ICONS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
 <style>
 body {
   margin: 0;
@@ -23,18 +26,12 @@ body {
   z-index: 20;
 }
 
-#home img {
-  width: 80%;
-  max-width: 500px;
-}
-
 /* MAP */
 #map-container {
   position: fixed;
   inset: 0;
   overflow: scroll;
   background: #f5f5f5;
-  z-index: 1;
 }
 
 #map {
@@ -55,7 +52,6 @@ body {
   border-radius: 8px;
   cursor: pointer;
   z-index: 10;
-  font-weight: bold;
 }
 
 /* NOTES */
@@ -64,12 +60,25 @@ body {
   width: 200px;
   height: 200px;
   cursor: pointer;
-  transition: transform 0.25s ease;
 }
 
 .note.zoom {
   transform: scale(3);
   z-index: 9999;
+}
+
+/* REPORT BUTTON */
+.reportBtn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: none;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.note.zoom .reportBtn {
+  display: block;
 }
 
 /* EDITOR */
@@ -80,37 +89,19 @@ body {
   display: none;
   flex-direction: column;
   align-items: center;
-  padding-top: 20px;
-  z-index: 30;
 }
 
 #canvas {
   width: 500px;
   height: 500px;
   background: transparent;
-  border: none;
-}
-
-.tools {
-  margin-top: 10px;
-  display: flex;
-  gap: 10px;
-}
-
-button {
-  padding: 10px 15px;
-  font-size: 16px;
-  cursor: pointer;
 }
 </style>
 </head>
 
 <body>
 
-<div id="home">
-  <img src="images/Leave_A_Note-removebg-preview.png">
-</div>
-
+<div id="home"></div>
 <div id="addNoteBtn" style="display:none;">ADD NOTE</div>
 
 <div id="map-container">
@@ -119,23 +110,16 @@ button {
 
 <div id="editor">
   <canvas id="canvas" width="500" height="500"></canvas>
-
-  <div class="tools">
-    <button onclick="setTool('draw')">Draw</button>
-    <button onclick="setTool('erase')">Erase</button>
-    <button onclick="setTool('text')">Text</button>
-    <input type="color" id="colorPicker" value="#000000">
-    <button onclick="finishNote()">Done</button>
-  </div>
+  <button onclick="finishNote()">Done</button>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* FIREBASE */
 const firebaseConfig = {
-  apiKey: "AIzaSyBzk5p9naKjZndFHfqpldxGUMLBGzkDIsU",
+  apiKey: "AIzaSyBzk5...",
   authDomain: "antianti-69313.firebaseapp.com",
   databaseURL: "https://antianti-69313-default-rtdb.firebaseio.com",
   projectId: "antianti-69313",
@@ -151,21 +135,17 @@ const notesRef = ref(db, "notes");
 /* ELEMENTS */
 const home = document.getElementById("home");
 const addNoteBtn = document.getElementById("addNoteBtn");
-const mapContainer = document.getElementById("map-container");
 const map = document.getElementById("map");
+const mapContainer = document.getElementById("map-container");
 const editor = document.getElementById("editor");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const colorPicker = document.getElementById("colorPicker");
 
 /* STATE */
-let tool = "draw";
-let drawing = false;
 let placing = false;
-let preview = null;
 let noteImage = null;
-let noteMask = null;
-const existingNotes = new Map();
+let preview = null;
+const notesCache = new Map();
 
 /* HOME */
 home.onclick = () => {
@@ -178,59 +158,7 @@ addNoteBtn.onclick = () => {
   editor.style.display = "flex";
   addNoteBtn.style.display = "none";
 
-  const img = new Image();
-  img.src = "images/note-removebg-preview.png";
-  img.onload = () => {
-    ctx.clearRect(0,0,500,500);
-    ctx.drawImage(img, 0, 0, 500, 500);
-
-    // create mask
-    noteMask = document.createElement("canvas");
-    noteMask.width = 500;
-    noteMask.height = 500;
-    const mctx = noteMask.getContext("2d");
-    mctx.drawImage(img, 0, 0, 500, 500);
-  };
-};
-
-/* TOOL */
-window.setTool = (t) => tool = t;
-
-/* DRAW */
-canvas.onmousedown = e => {
-  drawing = true;
-  ctx.beginPath();
-  ctx.moveTo(e.offsetX, e.offsetY);
-};
-
-canvas.onmousemove = e => {
-  if (!drawing || !noteMask) return;
-
-  const x = e.offsetX;
-  const y = e.offsetY;
-
-  const pixel = noteMask.getContext("2d").getImageData(x, y, 1, 1).data;
-  if (pixel[3] === 0) return;
-
-  ctx.strokeStyle = (tool === "erase") ? "white" : colorPicker.value;
-  ctx.lineWidth = (tool === "erase") ? 20 : 3;
-
-  ctx.lineTo(x, y);
-  ctx.stroke();
-};
-
-canvas.onmouseup = () => drawing = false;
-
-/* TEXT */
-canvas.onclick = e => {
-  if (tool === "text") {
-    const t = prompt("Text:");
-    if (t) {
-      ctx.fillStyle = colorPicker.value;
-      ctx.font = "24px Arial";
-      ctx.fillText(t, e.offsetX, e.offsetY);
-    }
-  }
+  ctx.clearRect(0,0,500,500);
 };
 
 /* FINISH */
@@ -248,9 +176,9 @@ window.finishNote = () => {
   map.appendChild(preview);
 };
 
-/* PREVIEW MOVE */
+/* MOVE PREVIEW */
 mapContainer.addEventListener("mousemove", e => {
-  if (!placing || !preview) return;
+  if (!placing) return;
 
   const rect = mapContainer.getBoundingClientRect();
   const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
@@ -260,7 +188,7 @@ mapContainer.addEventListener("mousemove", e => {
   preview.style.top = y + "px";
 });
 
-/* PLACE NOTE (INSTANT + SAVE) */
+/* PLACE */
 mapContainer.addEventListener("click", e => {
   if (!placing) return;
 
@@ -268,48 +196,54 @@ mapContainer.addEventListener("click", e => {
   const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
   const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
 
-  // show instantly
-  const note = document.createElement("img");
-  note.src = noteImage;
-  note.className = "note";
-  note.style.left = x + "px";
-  note.style.top = y + "px";
-
-  note.onclick = ev => {
-    ev.stopPropagation();
-    note.classList.toggle("zoom");
-  };
-
-  map.appendChild(note);
-
-  // save
-  push(notesRef, { x, y, image: noteImage });
+  const newRef = push(notesRef);
+  update(newRef, {
+    x,
+    y,
+    image: noteImage,
+    reported: false
+  });
 
   placing = false;
-  if (preview) preview.remove();
+  preview.remove();
 });
 
-/* LOAD NOTES (NO DELETING) */
+/* LOAD NOTES */
 onValue(notesRef, snapshot => {
   snapshot.forEach(child => {
     const id = child.key;
-    const d = child.val();
+    const data = child.val();
 
-    if (existingNotes.has(id)) return;
+    if (notesCache.has(id)) return;
 
-    const note = document.createElement("img");
-    note.src = d.image;
+    const note = document.createElement("div");
     note.className = "note";
-    note.style.left = d.x + "px";
-    note.style.top = d.y + "px";
+    note.style.left = data.x + "px";
+    note.style.top = data.y + "px";
 
-    note.onclick = e => {
+    const img = document.createElement("img");
+    img.src = data.image;
+    img.style.width = "100%";
+
+    const report = document.createElement("div");
+    report.className = "reportBtn";
+    report.innerHTML = `<i class="fa-solid fa-flag" style="color:red;"></i>`;
+
+    report.onclick = (e) => {
       e.stopPropagation();
+      update(ref(db, "notes/" + id), { reported: true });
+      alert("Reported");
+    };
+
+    note.appendChild(img);
+    note.appendChild(report);
+
+    note.onclick = () => {
       note.classList.toggle("zoom");
     };
 
     map.appendChild(note);
-    existingNotes.set(id, note);
+    notesCache.set(id, note);
   });
 });
 </script>
