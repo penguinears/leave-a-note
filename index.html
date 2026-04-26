@@ -61,15 +61,21 @@ body {
 /* NOTES */
 .note {
   position: absolute;
-  width: 200px;
-  height: 200px;
   cursor: pointer;
+  width: auto;
+  height: auto;
   transition: transform 0.25s ease;
 }
 
 .note.zoom {
   transform: scale(3);
   z-index: 9999;
+}
+
+/* PREVIEW FIX */
+.note.preview {
+  opacity: 0.5;
+  pointer-events: none; /* IMPORTANT FIX */
 }
 
 /* EDITOR */
@@ -85,8 +91,6 @@ body {
 }
 
 #canvas {
-  width: 500px;
-  height: 500px;
   border: none;
   background: transparent;
 }
@@ -118,7 +122,7 @@ button {
 </div>
 
 <div id="editor">
-  <canvas id="canvas" width="500" height="500"></canvas>
+  <canvas id="canvas"></canvas>
 
   <div class="tools">
     <button onclick="setTool('draw')">Draw</button>
@@ -178,9 +182,38 @@ addNoteBtn.onclick = () => {
 
   const img = new Image();
   img.src = "images/note-removebg-preview.png";
+
   img.onload = () => {
-    ctx.clearRect(0,0,500,500);
-    ctx.drawImage(img, 0, 0, 500, 500);
+    /* AUTO-CROP NOTE PNG */
+    const temp = document.createElement("canvas");
+    temp.width = img.width;
+    temp.height = img.height;
+    const tctx = temp.getContext("2d");
+    tctx.drawImage(img, 0, 0);
+
+    const data = tctx.getImageData(0, 0, temp.width, temp.height);
+    let minX = temp.width, minY = temp.height, maxX = 0, maxY = 0;
+
+    for (let y = 0; y < temp.height; y++) {
+      for (let x = 0; x < temp.width; x++) {
+        const a = data.data[(y * temp.width + x) * 4 + 3];
+        if (a > 5) {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    const w = maxX - minX;
+    const h = maxY - minY;
+
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(img, minX, minY, w, h, 0, 0, w, h);
   };
 };
 
@@ -197,14 +230,23 @@ canvas.onmousedown = e => {
 canvas.onmousemove = e => {
   if (!drawing) return;
 
-  ctx.strokeStyle = (tool === "erase") ? "white" : colorPicker.value;
+  ctx.strokeStyle = (tool === "erase") ? "rgba(0,0,0,0)" : colorPicker.value;
   ctx.lineWidth = (tool === "erase") ? 20 : 3;
+
+  if (tool === "erase") {
+    ctx.globalCompositeOperation = "destination-out";
+  } else {
+    ctx.globalCompositeOperation = "source-over";
+  }
 
   ctx.lineTo(e.offsetX, e.offsetY);
   ctx.stroke();
 };
 
-canvas.onmouseup = () => drawing = false;
+canvas.onmouseup = () => {
+  drawing = false;
+  ctx.globalCompositeOperation = "source-over";
+};
 
 /* TEXT */
 canvas.onclick = e => {
@@ -228,8 +270,7 @@ window.finishNote = () => {
 
   preview = document.createElement("img");
   preview.src = noteImage;
-  preview.className = "note";
-  preview.style.opacity = "0.5";
+  preview.className = "note preview";
   map.appendChild(preview);
 };
 
@@ -238,20 +279,20 @@ mapContainer.addEventListener("mousemove", e => {
   if (!placing || !preview) return;
 
   const rect = mapContainer.getBoundingClientRect();
-  const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
-  const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
+  const x = e.pageX - rect.left + mapContainer.scrollLeft - preview.width / 2;
+  const y = e.pageY - rect.top + mapContainer.scrollTop - preview.height / 2;
 
   preview.style.left = x + "px";
   preview.style.top = y + "px";
 });
 
-/* PLACE */
+/* PLACE NOTE */
 mapContainer.addEventListener("click", e => {
   if (!placing) return;
 
   const rect = mapContainer.getBoundingClientRect();
-  const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
-  const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
+  const x = e.pageX - rect.left + mapContainer.scrollLeft - preview.width / 2;
+  const y = e.pageY - rect.top + mapContainer.scrollTop - preview.height / 2;
 
   push(notesRef, { x, y, image: noteImage });
 
@@ -259,9 +300,9 @@ mapContainer.addEventListener("click", e => {
   if (preview) preview.remove();
 });
 
-/* LOAD NOTES (NO DELETE BUG) */
+/* LOAD NOTES */
 onValue(notesRef, snapshot => {
-  map.querySelectorAll(".note").forEach(n => n.remove());
+  map.querySelectorAll(".note:not(.preview)").forEach(n => n.remove());
 
   snapshot.forEach(child => {
     const d = child.val();
