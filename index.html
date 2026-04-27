@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Leave A Note</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+body { margin:0; overflow:hidden; font-family:Arial; }
+
+/* HOME */
+#home {
+  position:fixed; inset:0;
+  background:white;
+  display:flex; justify-content:center; align-items:center;
+  z-index:20;
+}
+
+/* MAIN HOME IMAGE */
+#home img.main {
+  width:80%;
+  max-width:500px;
+}
+
+/* UPDATE IMAGE (BOTTOM RIGHT) */
+#home img.update {
+  position:absolute;
+  bottom:25px;
+  right:25px;
+  width:140px;
+  height:auto;
+  z-index:21;
+}
+
+/* MAP */
+#map-container {
+  position:fixed; inset:0;
+  overflow:scroll;
+  background:#f5f5f5;
+  transition:opacity 0.2s;
+}
+#map { position:relative; width:4000px; height:4000px; background:white; }
+
+/* FADE EFFECT */
+#map-container.faded {
+  opacity:0.3;
+}
+
+/* BUTTON */
+#addNoteBtn {
+  position:fixed;
+  top:20px; left:20px;
+  padding:12px 20px;
+  background:#222; color:white;
+  border-radius:8px;
+  cursor:pointer;
+  z-index:10;
+}
+
+/* NOTE (slightly smaller) */
+.note {
+  position:absolute;
+  width:170px;
+  height:170px;
+  cursor:pointer;
+}
+.note img {
+  position:absolute;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+.note.zoom { transform:scale(3); z-index:9999; }
+
+/* REPORT */
+.reportBtn {
+  position:absolute;
+  bottom:5px;
+  right:5px;
+  display:none;
+}
+.note.zoom .reportBtn { display:block; }
+
+/* DATE */
+.dateTag {
+  position:absolute;
+  bottom:5px;
+  left:5px;
+  font-size:12px;
+  color:black;
+  background:none;
+}
+
+/* EDITOR */
+#editor {
+  position:fixed; inset:0;
+  background:rgba(255,255,255,0.9);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+}
+
+/* CENTERED CANVAS */
+#canvas {
+  width:500px;
+  height:500px;
+  display:block;
+}
+
+/* CANCEL */
+#cancelBtn {
+  position:absolute;
+  top:20px;
+  left:20px;
+  font-size:28px;
+  cursor:pointer;
+}
+
+.tools {
+  margin-top:10px;
+  display:flex;
+  gap:15px;
+  align-items:center;
+}
+.tools i { cursor:pointer; }
+</style>
+</head>
+
+<body>
+
+<div id="home">
+  <img class="main" src="images/Leave_A_Note__1_-removebg-preview.png">
+  <img class="update" src="images/new_update-removebg-preview.png">
+</div>
+
+<div id="addNoteBtn" style="display:none;">CREATE NOTE</div>
+
+<div id="map-container">
+  <div id="map"></div>
+</div>
+
+<div id="editor">
+  <div id="cancelBtn">
+    <i class="fa-solid fa-circle-xmark" style="color:#1e3050;"></i>
+  </div>
+
+  <canvas id="canvas" width="500" height="500"></canvas>
+
+  <div class="tools">
+    <i onclick="setTool('draw')" class="fa-solid fa-pen" style="color:#1e3050;"></i>
+    <i onclick="setTool('erase')" class="fa-solid fa-eraser" style="color:#1e3050;"></i>
+    <i onclick="setTool('text')" class="fa-regular fa-comment-dots" style="color:#1e3050;"></i>
+    <input type="color" id="colorPicker">
+    <input type="range" id="fontSize" min="10" max="60" value="24">
+    <button onclick="finishNote()">Done</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const app = initializeApp({
+  apiKey:"AIza...",
+  authDomain:"antianti-69313.firebaseapp.com",
+  databaseURL:"https://antianti-69313-default-rtdb.firebaseio.com",
+  projectId:"antianti-69313"
+});
+
+const db = getDatabase(app);
+const notesRef = ref(db,"notes");
+
+/* ELEMENTS */
+const home = document.getElementById("home");
+const addBtn = document.getElementById("addNoteBtn");
+const map = document.getElementById("map");
+const mapContainer = document.getElementById("map-container");
+const editor = document.getElementById("editor");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const colorPicker = document.getElementById("colorPicker");
+const fontSize = document.getElementById("fontSize");
+
+/* STATE */
+let tool="draw", drawing=false, placing=false;
+let preview=null, noteImage=null;
+
+/* HOME */
+home.onclick=()=>{ home.style.display="none"; addBtn.style.display="block"; };
+
+/* OPEN EDITOR */
+addBtn.onclick=()=>{
+  editor.style.display="flex";
+  addBtn.style.display="none";
+  mapContainer.classList.add("faded");
+
+  const img=new Image();
+  img.src="images/Untitled design.jpg";
+  img.onload=()=>ctx.drawImage(img,0,0,500,500);
+};
+
+/* CANCEL */
+document.getElementById("cancelBtn").onclick=()=>{
+  editor.style.display="none";
+  addBtn.style.display="block";
+  mapContainer.classList.remove("faded");
+};
+
+/* TOOL */
+window.setTool=t=>tool=t;
+
+/* DRAW + ERASE */
+canvas.onmousedown=canvas.ontouchstart=e=>{
+  drawing=true;
+  const x=e.offsetX||e.touches[0].clientX-canvas.offsetLeft;
+  const y=e.offsetY||e.touches[0].clientY-canvas.offsetTop;
+  ctx.beginPath(); ctx.moveTo(x,y);
+};
+
+canvas.onmousemove=canvas.ontouchmove=e=>{
+  if(!drawing)return;
+  const x=e.offsetX||e.touches[0].clientX-canvas.offsetLeft;
+  const y=e.offsetY||e.touches[0].clientY-canvas.offsetTop;
+
+  if(tool==="erase"){
+    ctx.globalCompositeOperation="destination-out";
+    ctx.lineWidth=25;
+  } else {
+    ctx.globalCompositeOperation="source-over";
+    ctx.strokeStyle=colorPicker.value;
+    ctx.lineWidth=3;
+  }
+
+  ctx.lineTo(x,y);
+  ctx.stroke();
+};
+
+canvas.onmouseup=canvas.ontouchend=()=>{
+  drawing=false;
+  ctx.globalCompositeOperation="source-over";
+};
+
+/* TEXT */
+canvas.onclick=e=>{
+  if(tool!=="text")return;
+
+  let text=prompt("Text:");
+  if(!text)return;
+
+  let size=parseInt(fontSize.value);
+  let maxWidth=420;
+
+  function wrap(t){
+    ctx.font=size+"px Arial";
+    let words=t.split(" "), lines=[], line="";
+    for(let w of words){
+      let test=line+w+" ";
+      if(ctx.measureText(test).width>maxWidth){ lines.push(line); line=w+" "; }
+      else line=test;
+    }
+    lines.push(line);
+    return lines;
+  }
+
+  let lines=wrap(text);
+
+  while(lines.length*size>420 && size>10){
+    size--; lines=wrap(text);
+  }
+
+  ctx.font=size+"px Arial";
+  ctx.fillStyle=colorPicker.value;
+  lines.forEach((l,i)=>ctx.fillText(l,e.offsetX,e.offsetY+i*size));
+};
+
+/* FINISH */
+window.finishNote=()=>{
+  editor.style.display="none";
+  addBtn.style.display="block";
+  mapContainer.classList.remove("faded");
+
+  noteImage=canvas.toDataURL();
+  placing=true;
+
+  preview=document.createElement("img");
+  preview.src=noteImage;
+  preview.className="note";
+  preview.style.opacity=0.5;
+  map.appendChild(preview);
+};
+
+/* PREVIEW */
+mapContainer.onmousemove=e=>{
+  if(!placing||!preview)return;
+  preview.style.left=(e.pageX-85)+"px";
+  preview.style.top=(e.pageY-85)+"px";
+};
+
+/* PLACE */
+mapContainer.onclick=e=>{
+  if(!placing)return;
+
+  const x=e.pageX-85, y=e.pageY-85;
+
+  const refN=push(notesRef);
+  const data={x,y,image:noteImage,created:Date.now(),reported:false};
+
+  createNote(refN.key,data);
+  update(refN,data);
+
+  placing=false;
+  preview.remove();
+};
+
+/* CREATE NOTE */
+function createNote(id,d){
+  const n=document.createElement("div");
+  n.className="note";
+  n.style.left=d.x+"px";
+  n.style.top=d.y+"px";
+
+  const bg=document.createElement("img");
+  bg.src="images/note-removebg-preview.png";
+
+  const content=document.createElement("img");
+  content.src=d.image;
+
+  const flag=document.createElement("div");
+  flag.className="reportBtn";
+  flag.innerHTML='<i class="fa-solid fa-flag" style="color:red;"></i>';
+
+  flag.onclick=e=>{
+    e.stopPropagation();
+    update(ref(db,"notes/"+id),{reported:true});
+  };
+
+  n.onclick=()=>{
+    n.classList.toggle("zoom");
+
+    const existing=n.querySelector(".dateTag");
+
+    if(n.classList.contains("zoom")){
+      if(!existing){
+        const dTag=document.createElement("div");
+        dTag.className="dateTag";
+
+        let text="Unknown date";
+        if(d.created){
+          const date=new Date(d.created);
+          text=date.toLocaleDateString(undefined,{
+            day:"numeric",
+            month:"short",
+            year:"numeric"
+          });
+        }
+
+        dTag.innerText=text;
+        n.appendChild(dTag);
+      }
+    } else {
+      if(existing) existing.remove();
+    }
+  };
+
+  n.appendChild(bg);
+  n.appendChild(content);
+  n.appendChild(flag);
+  map.appendChild(n);
+}
+
+/* LOAD */
+onValue(notesRef,snap=>{
+  map.querySelectorAll(".note").forEach(n=>n.remove());
+  snap.forEach(c=>createNote(c.key,c.val()));
+});
+</script>
+
+</body>
+</html>
