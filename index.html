@@ -23,12 +23,13 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   max-width:500px;
 }
 
-/* UPDATE IMAGE (BOTTOM RIGHT) */
+/* UPDATE IMAGE (BOTTOM RIGHT - BIGGER) */
 #home img.update {
   position:absolute;
-  bottom:25px;
-  right:25px;
-  width:140px;
+  bottom:20px;
+  right:20px;
+  width:65%;
+  max-width:420px;
   height:auto;
   z-index:21;
 }
@@ -58,7 +59,7 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   z-index:10;
 }
 
-/* NOTE (slightly smaller) */
+/* NOTE */
 .note {
   position:absolute;
   width:170px;
@@ -89,7 +90,6 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   left:5px;
   font-size:12px;
   color:black;
-  background:none;
 }
 
 /* EDITOR */
@@ -102,14 +102,11 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   flex-direction:column;
 }
 
-/* CENTERED CANVAS */
 #canvas {
   width:500px;
   height:500px;
-  display:block;
 }
 
-/* CANCEL */
 #cancelBtn {
   position:absolute;
   top:20px;
@@ -172,7 +169,6 @@ const app = initializeApp({
 const db = getDatabase(app);
 const notesRef = ref(db,"notes");
 
-/* ELEMENTS */
 const home = document.getElementById("home");
 const addBtn = document.getElementById("addNoteBtn");
 const map = document.getElementById("map");
@@ -183,14 +179,11 @@ const ctx = canvas.getContext("2d");
 const colorPicker = document.getElementById("colorPicker");
 const fontSize = document.getElementById("fontSize");
 
-/* STATE */
 let tool="draw", drawing=false, placing=false;
 let preview=null, noteImage=null;
 
-/* HOME */
 home.onclick=()=>{ home.style.display="none"; addBtn.style.display="block"; };
 
-/* OPEN EDITOR */
 addBtn.onclick=()=>{
   editor.style.display="flex";
   addBtn.style.display="none";
@@ -201,17 +194,14 @@ addBtn.onclick=()=>{
   img.onload=()=>ctx.drawImage(img,0,0,500,500);
 };
 
-/* CANCEL */
 document.getElementById("cancelBtn").onclick=()=>{
   editor.style.display="none";
   addBtn.style.display="block";
   mapContainer.classList.remove("faded");
 };
 
-/* TOOL */
 window.setTool=t=>tool=t;
 
-/* DRAW + ERASE */
 canvas.onmousedown=canvas.ontouchstart=e=>{
   drawing=true;
   const x=e.offsetX||e.touches[0].clientX-canvas.offsetLeft;
@@ -242,7 +232,6 @@ canvas.onmouseup=canvas.ontouchend=()=>{
   ctx.globalCompositeOperation="source-over";
 };
 
-/* TEXT */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
@@ -275,7 +264,6 @@ canvas.onclick=e=>{
   lines.forEach((l,i)=>ctx.fillText(l,e.offsetX,e.offsetY+i*size));
 };
 
-/* FINISH */
 window.finishNote=()=>{
   editor.style.display="none";
   addBtn.style.display="block";
@@ -291,14 +279,12 @@ window.finishNote=()=>{
   map.appendChild(preview);
 };
 
-/* PREVIEW */
 mapContainer.onmousemove=e=>{
   if(!placing||!preview)return;
   preview.style.left=(e.pageX-85)+"px";
   preview.style.top=(e.pageY-85)+"px";
 };
 
-/* PLACE */
 mapContainer.onclick=e=>{
   if(!placing)return;
 
@@ -314,7 +300,6 @@ mapContainer.onclick=e=>{
   preview.remove();
 };
 
-/* CREATE NOTE */
 function createNote(id,d){
   const n=document.createElement("div");
   n.className="note";
@@ -370,7 +355,6 @@ function createNote(id,d){
   map.appendChild(n);
 }
 
-/* LOAD */
 onValue(notesRef,snap=>{
   map.querySelectorAll(".note").forEach(n=>n.remove());
   snap.forEach(c=>createNote(c.key,c.val()));
