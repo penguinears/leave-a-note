@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <title>Leave A Note</title>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-body { margin:0; overflow:hidden; font-family:Arial; }
-
-/* HOME */
+body { margin:0; overflow:hidden; font-family:Arial; touch-action:none; }
+  
 #home {
   position:fixed; inset:0;
   background:white;
@@ -17,13 +18,11 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   z-index:20;
 }
 
-/* MAIN HOME IMAGE */
 #home img.main {
   width:80%;
   max-width:500px;
 }
 
-/* UPDATE IMAGE (BOTTOM RIGHT - BIGGER) */
 #home img.update {
   position:absolute;
   bottom:20px;
@@ -34,21 +33,26 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   z-index:21;
 }
 
-/* MAP */
+@media (max-width:600px){
+  #home img.update {
+    width:55%;
+    bottom:12px;
+    right:12px;
+  }
+}
+
 #map-container {
   position:fixed; inset:0;
   overflow:scroll;
   background:#f5f5f5;
   transition:opacity 0.2s;
+  touch-action:none;
 }
+
 #map { position:relative; width:4000px; height:4000px; background:white; }
 
-/* FADE EFFECT */
-#map-container.faded {
-  opacity:0.3;
-}
+#map-container.faded { opacity:0.3; }
 
-/* BUTTON */
 #addNoteBtn {
   position:fixed;
   top:20px; left:20px;
@@ -59,7 +63,6 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   z-index:10;
 }
 
-/* NOTE */
 .note {
   position:absolute;
   width:170px;
@@ -74,7 +77,6 @@ body { margin:0; overflow:hidden; font-family:Arial; }
 }
 .note.zoom { transform:scale(3); z-index:9999; }
 
-/* REPORT */
 .reportBtn {
   position:absolute;
   bottom:5px;
@@ -83,7 +85,6 @@ body { margin:0; overflow:hidden; font-family:Arial; }
 }
 .note.zoom .reportBtn { display:block; }
 
-/* DATE */
 .dateTag {
   position:absolute;
   bottom:5px;
@@ -92,7 +93,6 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   color:black;
 }
 
-/* EDITOR */
 #editor {
   position:fixed; inset:0;
   background:rgba(255,255,255,0.9);
@@ -105,6 +105,7 @@ body { margin:0; overflow:hidden; font-family:Arial; }
 #canvas {
   width:500px;
   height:500px;
+  touch-action:none;
 }
 
 #cancelBtn {
@@ -182,6 +183,12 @@ const fontSize = document.getElementById("fontSize");
 let tool="draw", drawing=false, placing=false;
 let preview=null, noteImage=null;
 
+/* STOP MOBILE SCROLL WHILE DRAWING */
+document.body.addEventListener("touchmove", e=>{
+  if(drawing || placing) e.preventDefault();
+}, {passive:false});
+
+/* HOME */
 home.onclick=()=>{ home.style.display="none"; addBtn.style.display="block"; };
 
 addBtn.onclick=()=>{
@@ -202,17 +209,19 @@ document.getElementById("cancelBtn").onclick=()=>{
 
 window.setTool=t=>tool=t;
 
-canvas.onmousedown=canvas.ontouchstart=e=>{
+/* DRAW (MOBILE FIXED) */
+canvas.addEventListener("touchstart", e=>{
   drawing=true;
-  const x=e.offsetX||e.touches[0].clientX-canvas.offsetLeft;
-  const y=e.offsetY||e.touches[0].clientY-canvas.offsetTop;
-  ctx.beginPath(); ctx.moveTo(x,y);
-};
+  const t=e.touches[0];
+  const rect=canvas.getBoundingClientRect();
+  ctx.beginPath();
+  ctx.moveTo(t.clientX-rect.left, t.clientY-rect.top);
+});
 
-canvas.onmousemove=canvas.ontouchmove=e=>{
+canvas.addEventListener("touchmove", e=>{
   if(!drawing)return;
-  const x=e.offsetX||e.touches[0].clientX-canvas.offsetLeft;
-  const y=e.offsetY||e.touches[0].clientY-canvas.offsetTop;
+  const t=e.touches[0];
+  const rect=canvas.getBoundingClientRect();
 
   if(tool==="erase"){
     ctx.globalCompositeOperation="destination-out";
@@ -223,15 +232,21 @@ canvas.onmousemove=canvas.ontouchmove=e=>{
     ctx.lineWidth=3;
   }
 
-  ctx.lineTo(x,y);
+  ctx.lineTo(t.clientX-rect.left, t.clientY-rect.top);
   ctx.stroke();
-};
+});
 
-canvas.onmouseup=canvas.ontouchend=()=>{
+canvas.addEventListener("touchend", ()=>{
   drawing=false;
   ctx.globalCompositeOperation="source-over";
-};
+});
 
+/* KEEP ORIGINAL MOUSE SUPPORT */
+canvas.onmousedown=canvas.ontouchstart;
+canvas.onmousemove=canvas.ontouchmove;
+canvas.onmouseup=canvas.ontouchend;
+
+/* TEXT */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
@@ -264,6 +279,7 @@ canvas.onclick=e=>{
   lines.forEach((l,i)=>ctx.fillText(l,e.offsetX,e.offsetY+i*size));
 };
 
+/* FINISH */
 window.finishNote=()=>{
   editor.style.display="none";
   addBtn.style.display="block";
@@ -323,30 +339,6 @@ function createNote(id,d){
 
   n.onclick=()=>{
     n.classList.toggle("zoom");
-
-    const existing=n.querySelector(".dateTag");
-
-    if(n.classList.contains("zoom")){
-      if(!existing){
-        const dTag=document.createElement("div");
-        dTag.className="dateTag";
-
-        let text="Unknown date";
-        if(d.created){
-          const date=new Date(d.created);
-          text=date.toLocaleDateString(undefined,{
-            day:"numeric",
-            month:"short",
-            year:"numeric"
-          });
-        }
-
-        dTag.innerText=text;
-        n.appendChild(dTag);
-      }
-    } else {
-      if(existing) existing.remove();
-    }
   };
 
   n.appendChild(bg);
