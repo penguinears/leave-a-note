@@ -23,11 +23,13 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   position:fixed; inset:0;
   overflow:scroll;
   background:#f5f5f5;
+  transition:opacity 0.2s;
 }
-#map {
-  position:relative;
-  width:4000px; height:4000px;
-  background:white;
+#map { position:relative; width:4000px; height:4000px; background:white; }
+
+/* FADE EFFECT */
+#map-container.faded {
+  opacity:0.3;
 }
 
 /* BUTTON */
@@ -41,10 +43,11 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   z-index:10;
 }
 
-/* NOTE */
+/* NOTE (slightly smaller) */
 .note {
   position:absolute;
-  width:200px; height:200px;
+  width:170px;
+  height:170px;
   cursor:pointer;
 }
 .note img {
@@ -74,24 +77,22 @@ body { margin:0; overflow:hidden; font-family:Arial; }
   background:none;
 }
 
-/* CURSOR */
-.cursor {
-  position:absolute;
-  pointer-events:none;
-  font-size:20px;
-  z-index:99999;
-}
-
 /* EDITOR */
 #editor {
   position:fixed; inset:0;
-  background:rgba(255,255,255,0.95);
+  background:rgba(255,255,255,0.9);
   display:none;
-  flex-direction:column;
+  justify-content:center;
   align-items:center;
+  flex-direction:column;
 }
 
-#canvas { width:500px; height:500px; }
+/* CENTERED CANVAS */
+#canvas {
+  width:500px;
+  height:500px;
+  display:block;
+}
 
 /* CANCEL */
 #cancelBtn {
@@ -143,7 +144,7 @@ body { margin:0; overflow:hidden; font-family:Arial; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, update, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const app = initializeApp({
   apiKey:"AIza...",
@@ -154,8 +155,6 @@ const app = initializeApp({
 
 const db = getDatabase(app);
 const notesRef = ref(db,"notes");
-const myId = Math.random().toString(36).slice(2);
-const cursorRef = ref(db,"cursors/"+myId);
 
 /* ELEMENTS */
 const home = document.getElementById("home");
@@ -179,6 +178,7 @@ home.onclick=()=>{ home.style.display="none"; addBtn.style.display="block"; };
 addBtn.onclick=()=>{
   editor.style.display="flex";
   addBtn.style.display="none";
+  mapContainer.classList.add("faded");
 
   const img=new Image();
   img.src="images/Untitled design.jpg";
@@ -189,6 +189,7 @@ addBtn.onclick=()=>{
 document.getElementById("cancelBtn").onclick=()=>{
   editor.style.display="none";
   addBtn.style.display="block";
+  mapContainer.classList.remove("faded");
 };
 
 /* TOOL */
@@ -262,6 +263,7 @@ canvas.onclick=e=>{
 window.finishNote=()=>{
   editor.style.display="none";
   addBtn.style.display="block";
+  mapContainer.classList.remove("faded");
 
   noteImage=canvas.toDataURL();
   placing=true;
@@ -276,15 +278,15 @@ window.finishNote=()=>{
 /* PREVIEW */
 mapContainer.onmousemove=e=>{
   if(!placing||!preview)return;
-  preview.style.left=(e.pageX-100)+"px";
-  preview.style.top=(e.pageY-100)+"px";
+  preview.style.left=(e.pageX-85)+"px";
+  preview.style.top=(e.pageY-85)+"px";
 };
 
 /* PLACE */
 mapContainer.onclick=e=>{
   if(!placing)return;
 
-  const x=e.pageX-100, y=e.pageY-100;
+  const x=e.pageX-85, y=e.pageY-85;
 
   const refN=push(notesRef);
   const data={x,y,image:noteImage,created:Date.now(),reported:false};
@@ -331,7 +333,11 @@ function createNote(id,d){
         let text="Unknown date";
         if(d.created){
           const date=new Date(d.created);
-          text=date.toLocaleDateString(undefined,{day:"numeric",month:"short"});
+          text=date.toLocaleDateString(undefined,{
+            day:"numeric",
+            month:"short",
+            year:"numeric"
+          });
         }
 
         dTag.innerText=text;
@@ -352,25 +358,6 @@ function createNote(id,d){
 onValue(notesRef,snap=>{
   map.querySelectorAll(".note").forEach(n=>n.remove());
   snap.forEach(c=>createNote(c.key,c.val()));
-});
-
-/* CURSORS */
-document.onmousemove=e=>{
-  set(cursorRef,{x:e.pageX,y:e.pageY});
-};
-
-onValue(ref(db,"cursors"),snap=>{
-  document.querySelectorAll(".cursor").forEach(c=>c.remove());
-  snap.forEach(c=>{
-    if(c.key===myId) return;
-
-    const cur=document.createElement("div");
-    cur.className="cursor";
-    cur.style.left=c.val().x+"px";
-    cur.style.top=c.val().y+"px";
-    cur.innerHTML='<i class="fa-solid fa-arrow-pointer" style="color:#1e3050;"></i>';
-    map.appendChild(cur);
-  });
 });
 </script>
 
