@@ -7,108 +7,73 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  font-family: Arial, sans-serif;
-}
+body { margin:0; overflow:hidden; font-family:Arial; }
 
-#home {
-  position: fixed;
-  inset: 0;
-  background: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  z-index: 20;
-}
+/* HOME */
+#home { position:fixed; inset:0; background:white; display:flex; justify-content:center; align-items:center; z-index:20; }
+#home img { width:80%; max-width:500px; }
 
-#home img {
-  width: 80%;
-  max-width: 500px;
-}
+/* MAP */
+#map-container { position:fixed; inset:0; overflow:scroll; background:#f5f5f5; }
+#map { position:relative; width:4000px; height:4000px; background:white; }
 
-#map-container {
-  position: fixed;
-  inset: 0;
-  overflow: scroll;
-  background: #f5f5f5;
-}
-
-#map {
-  position: relative;
-  width: 4000px;
-  height: 4000px;
-  background: white;
-}
-
+/* BUTTON */
 #addNoteBtn {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  padding: 12px 20px;
-  background: #222;
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  z-index: 10;
+  position:fixed; top:20px; left:20px;
+  padding:12px 20px; background:#222; color:white;
+  border-radius:8px; cursor:pointer; z-index:10;
 }
 
-.note {
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  cursor: pointer;
-  transition: transform 0.25s ease;
-}
+/* NOTE */
+.note { position:absolute; width:200px; height:200px; cursor:pointer; }
+.note.zoom { transform:scale(3); z-index:9999; }
 
-.note.zoom {
-  transform: scale(3);
-  z-index: 9999;
-}
-
-.reportBtn {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  display: none;
-}
-
-.note.zoom .reportBtn {
-  display: block;
-}
+.reportBtn { position:absolute; bottom:5px; right:5px; display:none; }
+.note.zoom .reportBtn { display:block; }
 
 .dateTag {
-  position: absolute;
-  bottom: 5px;
-  left: 5px;
-  font-size: 11px;
-  background: rgba(0,0,0,0.5);
-  color: white;
-  padding: 3px 6px;
-  border-radius: 5px;
+  position:absolute; bottom:5px; left:5px;
+  font-size:11px; background:rgba(0,0,0,0.5);
+  color:white; padding:3px 6px; border-radius:5px;
 }
 
+/* CURSORS */
+.cursor {
+  position:absolute;
+  pointer-events:none;
+  z-index:99999;
+  font-size:20px;
+}
+
+/* EDITOR */
 #editor {
-  position: fixed;
-  inset: 0;
-  background: rgba(255,255,255,0.95);
-  display: none;
-  flex-direction: column;
-  align-items: center;
+  position:fixed; inset:0;
+  background:rgba(255,255,255,0.95);
+  display:none; flex-direction:column;
+  align-items:center;
 }
 
 #canvas {
-  width: 500px;
-  height: 500px;
+  width:500px; height:500px;
+}
+
+/* CANCEL BUTTON */
+#cancelBtn {
+  position:absolute;
+  top:20px;
+  left:20px;
+  font-size:28px;
+  cursor:pointer;
 }
 
 .tools {
-  margin-top: 10px;
-  display: flex;
-  gap: 10px;
+  margin-top:10px;
+  display:flex;
+  gap:15px;
+  align-items:center;
 }
+
+.tools i { font-size:20px; cursor:pointer; }
 </style>
 </head>
 
@@ -118,20 +83,26 @@ body {
   <img src="images/Leave_A_Note-removebg-preview.png">
 </div>
 
-<div id="addNoteBtn" style="display:none;">ADD NOTE</div>
+<div id="addNoteBtn" style="display:none;">CREATE NOTE</div>
 
 <div id="map-container">
   <div id="map"></div>
 </div>
 
 <div id="editor">
+
+  <div id="cancelBtn">
+    <i class="fa-solid fa-circle-xmark" style="color:#1e3050;"></i>
+  </div>
+
   <canvas id="canvas" width="500" height="500"></canvas>
 
   <div class="tools">
-    <button onclick="setTool('draw')">Draw</button>
-    <button onclick="setTool('erase')">Erase</button>
-    <button onclick="setTool('text')">Text</button>
-    <input type="color" id="colorPicker" value="#000000">
+    <i onclick="setTool('draw')" class="fa-solid fa-pen" style="color:#1e3050;"></i>
+    <i onclick="setTool('erase')" class="fa-solid fa-eraser" style="color:#1e3050;"></i>
+    <i onclick="setTool('text')" class="fa-regular fa-comment-dots" style="color:#1e3050;"></i>
+    <i class="fa-solid fa-palette" style="color:#1e3050;"></i>
+    <input type="color" id="colorPicker">
     <input type="range" id="fontSize" min="10" max="60" value="24">
     <button onclick="finishNote()">Done</button>
   </div>
@@ -139,228 +110,219 @@ body {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, update, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBzk5p9naKjZndFHfqpldxGUMLBGzkDIsU",
-  authDomain: "antianti-69313.firebaseapp.com",
-  databaseURL: "https://antianti-69313-default-rtdb.firebaseio.com",
-  projectId: "antianti-69313",
-  storageBucket: "antianti-69313.firebasestorage.app",
-  messagingSenderId: "147709968684",
-  appId: "1:147709968684:web:696108f146ecda9b5eec89"
-};
+/* FIREBASE */
+const app = initializeApp({
+  apiKey:"AIza...",
+  authDomain:"antianti-69313.firebaseapp.com",
+  databaseURL:"https://antianti-69313-default-rtdb.firebaseio.com",
+  projectId:"antianti-69313"
+});
 
-const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const notesRef = ref(db, "notes");
+const notesRef = ref(db,"notes");
+const cursorRef = ref(db,"cursors/"+Math.random().toString(36).slice(2));
 
+/* ELEMENTS */
 const home = document.getElementById("home");
-const addNoteBtn = document.getElementById("addNoteBtn");
+const addBtn = document.getElementById("addNoteBtn");
 const map = document.getElementById("map");
-const mapContainer = document.getElementById("map-container");
 const editor = document.getElementById("editor");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const colorPicker = document.getElementById("colorPicker");
-const fontSlider = document.getElementById("fontSize");
+const fontSize = document.getElementById("fontSize");
 
-let tool = "draw";
-let drawing = false;
-let placing = false;
-let preview = null;
-let noteImage = null;
-let noteMask = null;
+/* STATE */
+let tool="draw", drawing=false, placing=false, preview=null, noteImage=null;
 
-home.onclick = () => {
-  home.style.display = "none";
-  addNoteBtn.style.display = "block";
-};
+/* HOME */
+home.onclick=()=>{ home.style.display="none"; addBtn.style.display="block"; };
 
-addNoteBtn.onclick = () => {
-  editor.style.display = "flex";
-  addNoteBtn.style.display = "none";
+/* OPEN EDITOR */
+addBtn.onclick=()=>{
+  editor.style.display="flex";
+  addBtn.style.display="none";
 
-  const img = new Image();
-  img.src = "images/note-removebg-preview.png";
+  const img=new Image();
+  img.src="images/Untitled design.jpg";
 
-  img.onload = () => {
+  img.onload=()=>{
     ctx.clearRect(0,0,500,500);
     ctx.drawImage(img,0,0,500,500);
-
-    noteMask = document.createElement("canvas");
-    noteMask.width = 500;
-    noteMask.height = 500;
-    noteMask.getContext("2d").drawImage(img,0,0,500,500);
   };
 };
 
-window.setTool = t => tool = t;
-
-/* CLIPPED DRAW */
-canvas.onmousedown = e => {
-  drawing = true;
-  ctx.save();
-
-  ctx.beginPath();
-  ctx.rect(0,0,500,500);
-  ctx.clip();
-
-  ctx.beginPath();
-  ctx.moveTo(e.offsetX, e.offsetY);
+/* CANCEL */
+document.getElementById("cancelBtn").onclick=()=>{
+  editor.style.display="none";
+  addBtn.style.display="block";
 };
 
-canvas.onmousemove = e => {
-  if (!drawing) return;
+/* TOOL */
+window.setTool=t=>tool=t;
 
-  if (tool === "erase") {
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.lineWidth = 25;
+/* DRAW (MOUSE + TOUCH) */
+function getPos(e){
+  if(e.touches) return {x:e.touches[0].clientX-canvas.offsetLeft,y:e.touches[0].clientY-canvas.offsetTop};
+  return {x:e.offsetX,y:e.offsetY};
+}
+
+canvas.onmousedown=canvas.ontouchstart=e=>{
+  drawing=true;
+  const p=getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(p.x,p.y);
+};
+
+canvas.onmousemove=canvas.ontouchmove=e=>{
+  if(!drawing)return;
+  const p=getPos(e);
+
+  if(tool==="erase"){
+    ctx.globalCompositeOperation="destination-out";
+    ctx.lineWidth=25;
   } else {
-    ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = colorPicker.value;
-    ctx.lineWidth = 3;
+    ctx.globalCompositeOperation="source-over";
+    ctx.strokeStyle=colorPicker.value;
+    ctx.lineWidth=3;
   }
 
-  ctx.lineTo(e.offsetX, e.offsetY);
+  ctx.lineTo(p.x,p.y);
   ctx.stroke();
 };
 
-canvas.onmouseup = () => {
-  drawing = false;
-  ctx.restore();
-  ctx.globalCompositeOperation = "source-over";
+canvas.onmouseup=canvas.ontouchend=()=>{
+  drawing=false;
+  ctx.globalCompositeOperation="source-over";
 };
 
-/* TEXT WRAP + FIT */
-canvas.onclick = e => {
-  if (tool !== "text") return;
+/* TEXT */
+canvas.onclick=e=>{
+  if(tool!=="text")return;
 
-  const text = prompt("Text:");
-  if (!text) return;
+  let text=prompt("Text:");
+  if(!text)return;
 
-  let size = parseInt(fontSlider.value);
-  let maxWidth = 420;
-  let lineHeight = size * 1.2;
+  let size=parseInt(fontSize.value);
+  ctx.fillStyle=colorPicker.value;
 
-  function wrap(txt, size) {
-    ctx.font = size + "px Arial";
-    let words = txt.split(" ");
-    let lines = [];
-    let line = "";
-
-    for (let w of words) {
-      let test = line + w + " ";
-      if (ctx.measureText(test).width > maxWidth) {
-        lines.push(line);
-        line = w + " ";
-      } else {
-        line = test;
-      }
+  function wrap(txt){
+    ctx.font=size+"px Arial";
+    let words=txt.split(" "), lines=[], line="";
+    for(let w of words){
+      let test=line+w+" ";
+      if(ctx.measureText(test).width>420){ lines.push(line); line=w+" "; }
+      else line=test;
     }
     lines.push(line);
     return lines;
   }
 
-  let lines = wrap(text, size);
+  let lines=wrap(text);
 
-  while (lines.length * lineHeight > 420 && size > 10) {
-    size--;
-    lineHeight = size * 1.2;
-    lines = wrap(text, size);
+  while(lines.length*size>420 && size>10){
+    size--; lines=wrap(text);
   }
 
-  ctx.font = size + "px Arial";
-  ctx.fillStyle = colorPicker.value;
-
-  lines.forEach((line, i) => {
-    ctx.fillText(line, e.offsetX, e.offsetY + i * lineHeight);
-  });
+  ctx.font=size+"px Arial";
+  lines.forEach((l,i)=>ctx.fillText(l,e.offsetX,e.offsetY+i*size));
 };
 
-window.finishNote = () => {
-  editor.style.display = "none";
-  addNoteBtn.style.display = "block";
+/* FINISH */
+window.finishNote=()=>{
+  editor.style.display="none";
+  addBtn.style.display="block";
 
-  noteImage = canvas.toDataURL();
-  placing = true;
+  noteImage=canvas.toDataURL();
+  placing=true;
 
-  preview = document.createElement("img");
-  preview.src = noteImage;
-  preview.className = "note";
-  preview.style.opacity = "0.5";
+  preview=document.createElement("img");
+  preview.src=noteImage;
+  preview.className="note";
+  preview.style.opacity=0.5;
   map.appendChild(preview);
 };
 
-mapContainer.addEventListener("mousemove", e => {
-  if (!placing || !preview) return;
+/* PLACE */
+map.onclick=e=>{
+  if(!placing)return;
 
-  const rect = mapContainer.getBoundingClientRect();
-  preview.style.left = (e.pageX - rect.left + mapContainer.scrollLeft - 100) + "px";
-  preview.style.top = (e.pageY - rect.top + mapContainer.scrollTop - 100) + "px";
-});
+  const x=e.pageX-100, y=e.pageY-100;
 
-mapContainer.addEventListener("click", e => {
-  if (!placing) return;
+  const refN=push(notesRef);
+  const data={x,y,image:noteImage,created:Date.now(),reported:false};
 
-  const rect = mapContainer.getBoundingClientRect();
-  const x = e.pageX - rect.left + mapContainer.scrollLeft - 100;
-  const y = e.pageY - rect.top + mapContainer.scrollTop - 100;
+  createNote(refN.key,data);
+  update(refN,data);
 
-  const newRef = push(notesRef);
-
-  const data = {
-    x, y,
-    image: noteImage,
-    reported: false,
-    created: Date.now()
-  };
-
-  createNote(newRef.key, data);
-  update(newRef, data);
-
-  placing = false;
+  placing=false;
   preview.remove();
-});
+};
 
-function createNote(id, d) {
-  const note = document.createElement("div");
-  note.className = "note";
-  note.style.left = d.x + "px";
-  note.style.top = d.y + "px";
+/* CREATE NOTE */
+function createNote(id,d){
+  const n=document.createElement("div");
+  n.className="note";
+  n.style.left=d.x+"px";
+  n.style.top=d.y+"px";
 
-  const img = document.createElement("img");
-  img.src = d.image;
-  img.style.width = "100%";
+  const img=document.createElement("img");
+  img.src="images/note-removebg-preview.png";
 
-  const report = document.createElement("div");
-  report.className = "reportBtn";
-  report.innerHTML = `<i class="fa-solid fa-flag" style="color:red;"></i>`;
+  const content=document.createElement("img");
+  content.src=d.image;
+  content.style.position="absolute";
+  content.style.width="100%";
 
-  report.onclick = e => {
+  const flag=document.createElement("div");
+  flag.className="reportBtn";
+  flag.innerHTML='<i class="fa-solid fa-flag" style="color:red;"></i>';
+
+  flag.onclick=e=>{
     e.stopPropagation();
-    update(ref(db, "notes/" + id), { reported: true });
+    update(ref(db,"notes/"+id),{reported:true});
   };
 
-  note.onclick = () => {
-    note.classList.toggle("zoom");
+  n.onclick=()=>{
+    n.classList.toggle("zoom");
 
-    if (!note.querySelector(".dateTag")) {
-      const dTag = document.createElement("div");
-      dTag.className = "dateTag";
-      dTag.innerText = new Date(d.created).toLocaleString();
-      note.appendChild(dTag);
+    if(!n.querySelector(".dateTag")){
+      const dTag=document.createElement("div");
+      dTag.className="dateTag";
+      dTag.innerText=d.created ? new Date(d.created).toLocaleString() : "Unknown date";
+      n.appendChild(dTag);
     }
   };
 
-  note.appendChild(img);
-  note.appendChild(report);
-  map.appendChild(note);
+  n.appendChild(img);
+  n.appendChild(content);
+  n.appendChild(flag);
+  map.appendChild(n);
 }
 
-onValue(notesRef, snapshot => {
-  map.querySelectorAll(".note").forEach(n => n.remove());
-  snapshot.forEach(child => createNote(child.key, child.val()));
+/* LOAD */
+onValue(notesRef,snap=>{
+  map.querySelectorAll(".note").forEach(n=>n.remove());
+  snap.forEach(c=>createNote(c.key,c.val()));
+});
+
+/* CURSORS */
+document.onmousemove=e=>{
+  set(cursorRef,{x:e.pageX,y:e.pageY});
+};
+
+onValue(ref(db,"cursors"),snap=>{
+  document.querySelectorAll(".cursor").forEach(c=>c.remove());
+  snap.forEach(c=>{
+    const cur=document.createElement("div");
+    cur.className="cursor";
+    cur.style.left=c.val().x+"px";
+    cur.style.top=c.val().y+"px";
+    cur.innerHTML='<i class="fa-solid fa-arrow-pointer" style="color:#1e3050;"></i>';
+    map.appendChild(cur);
+  });
 });
 </script>
 
