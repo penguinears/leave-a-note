@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <title>Leave A Note</title>
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-body { margin:0; overflow:hidden; font-family:Arial; touch-action:none; }
-  
+body { margin:0; font-family:Arial; }
+
+/* HOME */
 #home {
   position:fixed; inset:0;
   background:white;
@@ -41,60 +42,84 @@ body { margin:0; overflow:hidden; font-family:Arial; touch-action:none; }
   }
 }
 
+/* MAP */
 #map-container {
-  position:fixed; inset:0;
+  position:fixed;
+  inset:0;
   overflow:scroll;
   background:#f5f5f5;
   transition:opacity 0.2s;
-  touch-action:none;
+  touch-action: pan-x pan-y;
 }
 
-#map { position:relative; width:4000px; height:4000px; background:white; }
+#map {
+  position:relative;
+  width:4000px;
+  height:4000px;
+  background:white;
+}
 
-#map-container.faded { opacity:0.3; }
+#map-container.faded {
+  opacity:0.3;
+}
 
+/* BUTTON */
 #addNoteBtn {
   position:fixed;
-  top:20px; left:20px;
+  top:20px;
+  left:20px;
   padding:12px 20px;
-  background:#222; color:white;
+  background:#222;
+  color:white;
   border-radius:8px;
   cursor:pointer;
   z-index:10;
 }
 
+/* NOTE */
 .note {
   position:absolute;
   width:170px;
   height:170px;
   cursor:pointer;
 }
+
 .note img {
   position:absolute;
   width:100%;
   height:100%;
   object-fit:contain;
 }
-.note.zoom { transform:scale(3); z-index:9999; }
 
+.note.zoom {
+  transform:scale(3);
+  z-index:9999;
+}
+
+/* REPORT */
 .reportBtn {
   position:absolute;
   bottom:5px;
   right:5px;
   display:none;
 }
-.note.zoom .reportBtn { display:block; }
 
+.note.zoom .reportBtn {
+  display:block;
+}
+
+/* DATE */
 .dateTag {
   position:absolute;
   bottom:5px;
   left:5px;
   font-size:12px;
-  color:black;
 }
 
+/* EDITOR */
 #editor {
-  position:fixed; inset:0;
+  position:fixed;
+  inset:0;
   background:rgba(255,255,255,0.9);
   display:none;
   justify-content:center;
@@ -122,7 +147,10 @@ body { margin:0; overflow:hidden; font-family:Arial; touch-action:none; }
   gap:15px;
   align-items:center;
 }
-.tools i { cursor:pointer; }
+
+.tools i {
+  cursor:pointer;
+}
 </style>
 </head>
 
@@ -180,16 +208,17 @@ const ctx = canvas.getContext("2d");
 const colorPicker = document.getElementById("colorPicker");
 const fontSize = document.getElementById("fontSize");
 
-let tool="draw", drawing=false, placing=false;
-let preview=null, noteImage=null;
-
-/* STOP MOBILE SCROLL WHILE DRAWING */
-document.body.addEventListener("touchmove", e=>{
-  if(drawing || placing) e.preventDefault();
-}, {passive:false});
+let tool="draw";
+let drawing=false;
+let placing=false;
+let preview=null;
+let noteImage=null;
 
 /* HOME */
-home.onclick=()=>{ home.style.display="none"; addBtn.style.display="block"; };
+home.onclick=()=>{
+  home.style.display="none";
+  addBtn.style.display="block";
+};
 
 addBtn.onclick=()=>{
   editor.style.display="flex";
@@ -209,19 +238,19 @@ document.getElementById("cancelBtn").onclick=()=>{
 
 window.setTool=t=>tool=t;
 
-/* DRAW (MOBILE FIXED) */
+/* DRAW */
 canvas.addEventListener("touchstart", e=>{
   drawing=true;
   const t=e.touches[0];
-  const rect=canvas.getBoundingClientRect();
+  const r=canvas.getBoundingClientRect();
   ctx.beginPath();
-  ctx.moveTo(t.clientX-rect.left, t.clientY-rect.top);
-});
+  ctx.moveTo(t.clientX-r.left,t.clientY-r.top);
+},{passive:true});
 
 canvas.addEventListener("touchmove", e=>{
   if(!drawing)return;
   const t=e.touches[0];
-  const rect=canvas.getBoundingClientRect();
+  const r=canvas.getBoundingClientRect();
 
   if(tool==="erase"){
     ctx.globalCompositeOperation="destination-out";
@@ -232,19 +261,14 @@ canvas.addEventListener("touchmove", e=>{
     ctx.lineWidth=3;
   }
 
-  ctx.lineTo(t.clientX-rect.left, t.clientY-rect.top);
+  ctx.lineTo(t.clientX-r.left,t.clientY-r.top);
   ctx.stroke();
-});
+},{passive:true});
 
-canvas.addEventListener("touchend", ()=>{
+canvas.addEventListener("touchend",()=>{
   drawing=false;
   ctx.globalCompositeOperation="source-over";
 });
-
-/* KEEP ORIGINAL MOUSE SUPPORT */
-canvas.onmousedown=canvas.ontouchstart;
-canvas.onmousemove=canvas.ontouchmove;
-canvas.onmouseup=canvas.ontouchend;
 
 /* TEXT */
 canvas.onclick=e=>{
@@ -258,11 +282,13 @@ canvas.onclick=e=>{
 
   function wrap(t){
     ctx.font=size+"px Arial";
-    let words=t.split(" "), lines=[], line="";
+    let words=t.split(" "),lines=[],line="";
     for(let w of words){
       let test=line+w+" ";
-      if(ctx.measureText(test).width>maxWidth){ lines.push(line); line=w+" "; }
-      else line=test;
+      if(ctx.measureText(test).width>maxWidth){
+        lines.push(line);
+        line=w+" ";
+      } else line=test;
     }
     lines.push(line);
     return lines;
@@ -270,13 +296,17 @@ canvas.onclick=e=>{
 
   let lines=wrap(text);
 
-  while(lines.length*size>420 && size>10){
-    size--; lines=wrap(text);
+  while(lines.length*size>420&&size>10){
+    size--;
+    lines=wrap(text);
   }
 
   ctx.font=size+"px Arial";
   ctx.fillStyle=colorPicker.value;
-  lines.forEach((l,i)=>ctx.fillText(l,e.offsetX,e.offsetY+i*size));
+
+  lines.forEach((l,i)=>{
+    ctx.fillText(l,e.offsetX,e.offsetY+i*size);
+  });
 };
 
 /* FINISH */
@@ -295,27 +325,31 @@ window.finishNote=()=>{
   map.appendChild(preview);
 };
 
+/* PREVIEW */
 mapContainer.onmousemove=e=>{
   if(!placing||!preview)return;
   preview.style.left=(e.pageX-85)+"px";
   preview.style.top=(e.pageY-85)+"px";
 };
 
+/* PLACE */
 mapContainer.onclick=e=>{
   if(!placing)return;
 
-  const x=e.pageX-85, y=e.pageY-85;
+  const x=e.pageX-85;
+  const y=e.pageY-85;
 
-  const refN=push(notesRef);
+  const r=push(notesRef);
   const data={x,y,image:noteImage,created:Date.now(),reported:false};
 
-  createNote(refN.key,data);
-  update(refN,data);
+  createNote(r.key,data);
+  update(r,data);
 
   placing=false;
   preview.remove();
 };
 
+/* NOTE */
 function createNote(id,d){
   const n=document.createElement("div");
   n.className="note";
@@ -337,9 +371,7 @@ function createNote(id,d){
     update(ref(db,"notes/"+id),{reported:true});
   };
 
-  n.onclick=()=>{
-    n.classList.toggle("zoom");
-  };
+  n.onclick=()=>n.classList.toggle("zoom");
 
   n.appendChild(bg);
   n.appendChild(content);
@@ -347,6 +379,7 @@ function createNote(id,d){
   map.appendChild(n);
 }
 
+/* LOAD */
 onValue(notesRef,snap=>{
   map.querySelectorAll(".note").forEach(n=>n.remove());
   snap.forEach(c=>createNote(c.key,c.val()));
