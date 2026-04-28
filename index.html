@@ -127,6 +127,7 @@ body { margin:0; font-family:Arial; }
   width:500px;
   height:500px;
   touch-action:none;
+  border:1px solid #ccc;
 }
 
 #cancelBtn {
@@ -167,9 +168,9 @@ body { margin:0; font-family:Arial; }
   <canvas id="canvas" width="500" height="500"></canvas>
 
   <div class="tools">
-    <i onclick="setTool('draw')" class="fa-solid fa-pen" style="color:#1e3050;"></i>
-    <i onclick="setTool('erase')" class="fa-solid fa-eraser" style="color:#1e3050;"></i>
-    <i onclick="setTool('text')" class="fa-regular fa-comment-dots" style="color:#1e3050;"></i>
+    <i onclick="setTool('draw')" class="fa-solid fa-pen"></i>
+    <i onclick="setTool('erase')" class="fa-solid fa-eraser"></i>
+    <i onclick="setTool('text')" class="fa-regular fa-comment-dots"></i>
     <input type="color" id="colorPicker">
     <input type="range" id="fontSize" min="10" max="60" value="24">
     <button onclick="finishNote()">Done</button>
@@ -231,19 +232,17 @@ document.getElementById("cancelBtn").onclick=()=>{
 
 window.setTool=t=>tool=t;
 
-/* DRAW TOUCH */
-canvas.addEventListener("touchstart", e=>{
+/* POINTER DRAW (FIXED) */
+canvas.addEventListener("pointerdown", e=>{
   drawing=true;
-  const t=e.touches[0];
-  const r=canvas.getBoundingClientRect();
+  const rect=canvas.getBoundingClientRect();
   ctx.beginPath();
-  ctx.moveTo(t.clientX-r.left,t.clientY-r.top);
-},{passive:true});
+  ctx.moveTo(e.clientX-rect.left, e.clientY-rect.top);
+});
 
-canvas.addEventListener("touchmove", e=>{
+canvas.addEventListener("pointermove", e=>{
   if(!drawing)return;
-  const t=e.touches[0];
-  const r=canvas.getBoundingClientRect();
+  const rect=canvas.getBoundingClientRect();
 
   if(tool==="erase"){
     ctx.globalCompositeOperation="destination-out";
@@ -254,11 +253,11 @@ canvas.addEventListener("touchmove", e=>{
     ctx.lineWidth=3;
   }
 
-  ctx.lineTo(t.clientX-r.left,t.clientY-r.top);
+  ctx.lineTo(e.clientX-rect.left, e.clientY-rect.top);
   ctx.stroke();
-},{passive:true});
+});
 
-canvas.addEventListener("touchend",()=>{
+canvas.addEventListener("pointerup", ()=>{
   drawing=false;
   ctx.globalCompositeOperation="source-over";
 });
@@ -318,32 +317,17 @@ window.finishNote=()=>{
   map.appendChild(preview);
 };
 
-/* POSITION HELPER */
+/* POSITION */
 function getPos(e){
   const rect=map.getBoundingClientRect();
-
-  if(e.changedTouches){
-    return {
-      x:e.changedTouches[0].clientX-rect.left+mapContainer.scrollLeft,
-      y:e.changedTouches[0].clientY-rect.top+mapContainer.scrollTop
-    };
-  } else {
-    return {
-      x:e.clientX-rect.left+mapContainer.scrollLeft,
-      y:e.clientY-rect.top+mapContainer.scrollTop
-    };
-  }
+  return {
+    x:e.clientX-rect.left+mapContainer.scrollLeft,
+    y:e.clientY-rect.top+mapContainer.scrollTop
+  };
 }
 
 /* PREVIEW */
-mapContainer.addEventListener("mousemove",e=>{
-  if(!placing||!preview)return;
-  const p=getPos(e);
-  preview.style.left=(p.x-85)+"px";
-  preview.style.top=(p.y-85)+"px";
-});
-
-mapContainer.addEventListener("touchmove",e=>{
+mapContainer.addEventListener("pointermove",e=>{
   if(!placing||!preview)return;
   const p=getPos(e);
   preview.style.left=(p.x-85)+"px";
@@ -351,7 +335,7 @@ mapContainer.addEventListener("touchmove",e=>{
 });
 
 /* PLACE */
-function placeNote(e){
+mapContainer.addEventListener("pointerup",e=>{
   if(!placing)return;
 
   const p=getPos(e);
@@ -370,12 +354,9 @@ function placeNote(e){
 
   placing=false;
   preview.remove();
-}
+});
 
-mapContainer.addEventListener("click",placeNote);
-mapContainer.addEventListener("touchend",placeNote);
-
-/* CREATE NOTE */
+/* NOTE */
 function createNote(id,d){
   const n=document.createElement("div");
   n.className="note";
@@ -410,11 +391,8 @@ function createNote(id,d){
         let text="Unknown date";
         if(d.created){
           const date=new Date(d.created);
-          text=date.toLocaleDateString(undefined,{
-            day:"numeric",
-            month:"short",
-            year:"numeric"
-          });
+          text=date.toLocaleDateString();
+
         }
 
         dTag.innerText=text;
