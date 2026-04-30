@@ -11,7 +11,6 @@
 <style>
 body { margin:0; font-family:Arial; }
 
-/* HOME (FIXED MOBILE SCALING) */
 #home {
   position:fixed;
   inset:0;
@@ -61,7 +60,6 @@ body { margin:0; font-family:Arial; }
 
 #map-container.faded { opacity:0.3; }
 
-/* BUTTON */
 #addNoteBtn {
   position:fixed;
   top:20px;
@@ -106,7 +104,6 @@ body { margin:0; font-family:Arial; }
   display:block;
 }
 
-/* DATE */
 .dateTag {
   position:absolute;
   bottom:5px;
@@ -115,7 +112,6 @@ body { margin:0; font-family:Arial; }
   color:black;
 }
 
-/* EDITOR */
 #editor {
   position:fixed;
   inset:0;
@@ -217,7 +213,6 @@ home.onclick=()=>{
   addBtn.style.display="block";
 };
 
-/* EDITOR */
 addBtn.onclick=()=>{
   editor.style.display="flex";
   addBtn.style.display="none";
@@ -235,8 +230,7 @@ document.getElementById("cancelBtn").onclick=()=>{
 };
 
 window.setTool=t=>tool=t;
-
-/* DRAW */
+=
 canvas.onpointerdown=e=>{
   drawing=true;
   const r=canvas.getBoundingClientRect();
@@ -266,7 +260,6 @@ canvas.onpointerup=()=>{
   ctx.globalCompositeOperation="source-over";
 };
 
-/* TEXT AUTO FIT */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
@@ -333,7 +326,6 @@ function getPos(clientX,clientY){
   };
 }
 
-/* MOUSE PREVIEW */
 mapContainer.addEventListener("mousemove",e=>{
   if(!placing)return;
   const p=getPos(e.clientX,e.clientY);
@@ -341,7 +333,6 @@ mapContainer.addEventListener("mousemove",e=>{
   preview.style.top=(p.y-85)+"px";
 });
 
-/* MOBILE TAP + DOUBLE TAP */
 mapContainer.addEventListener("touchstart",e=>{
   if(!placing)return;
 
@@ -359,13 +350,11 @@ mapContainer.addEventListener("touchstart",e=>{
   lastTap=now;
 });
 
-/* PLACE (DESKTOP) */
 mapContainer.addEventListener("click",e=>{
   if(!placing)return;
   placeFinal(getPos(e.clientX,e.clientY));
 });
 
-/* PLACE FUNCTION */
 function placeFinal(p){
   const r=push(notesRef);
   const data={
@@ -383,7 +372,6 @@ function placeFinal(p){
   preview.remove();
 }
 
-/* NOTE */
 function createNote(id,d){
   const n=document.createElement("div");
   n.className="note";
@@ -431,7 +419,6 @@ function createNote(id,d){
   map.appendChild(n);
 }
 
-/* LOAD */
 onValue(notesRef,snap=>{
   map.querySelectorAll(".note").forEach(n=>n.remove());
   snap.forEach(c=>createNote(c.key,c.val()));
