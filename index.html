@@ -11,7 +11,7 @@
 <style>
 body { margin:0; font-family:Arial; }
 
-/* HOME (UNCHANGED STRUCTURE + FIX SAFE) */
+/* HOME (FIXED ONLY) */
 #home {
   position:fixed;
   inset:0;
@@ -19,12 +19,8 @@ body { margin:0; font-family:Arial; }
   display:flex;
   justify-content:center;
   align-items:center;
-  z-index:9999;
-}
-
-#home.hidden{
-  display:none;
-  pointer-events:none;
+  z-index:20;
+  touch-action: manipulation;
 }
 
 #home img.main {
@@ -46,6 +42,11 @@ body { margin:0; font-family:Arial; }
     bottom:12px;
     right:12px;
   }
+}
+
+#home.hidden{
+  display:none;
+  pointer-events:none;
 }
 
 /* MAP */
@@ -84,6 +85,7 @@ body { margin:0; font-family:Arial; }
   width:170px;
   height:170px;
   cursor:pointer;
+  transition:transform 0.2s;
 }
 
 .note img {
@@ -93,12 +95,13 @@ body { margin:0; font-family:Arial; }
   object-fit:contain;
 }
 
+/* ZOOM (RESTORED EXACT FEATURE) */
 .note.zoom {
   transform:scale(3);
   z-index:9999;
 }
 
-/* REPORT */
+/* REPORT BUTTON */
 .reportBtn {
   position:absolute;
   bottom:5px;
@@ -110,7 +113,7 @@ body { margin:0; font-family:Arial; }
   display:block;
 }
 
-/* DATE */
+/* DATE TAG (RESTORED FEATURE) */
 .dateTag {
   position:absolute;
   bottom:5px;
@@ -215,12 +218,11 @@ let preview=null;
 let noteImage=null;
 let lastTap=0;
 
-/* HOME FIX (ADDED SAFE EXIT) */
+/* HOME FIX */
 function enterApp(){
   home.classList.add("hidden");
   addBtn.style.display="block";
 }
-
 home.addEventListener("click", enterApp);
 home.addEventListener("touchstart", enterApp);
 
@@ -273,25 +275,24 @@ canvas.onpointerup=()=>{
   ctx.globalCompositeOperation="source-over";
 };
 
-/* TEXT FIX (FULL WRAP SAFE) */
+/* TEXT AUTO FIT (FIXED WRAP + SHRINK) */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
   let text=prompt("Text:");
   if(!text)return;
 
-  let maxWidth=420;
-  let maxHeight=420;
+  let maxW=420, maxH=420;
   let size=parseInt(fontSize.value);
 
-  function wrap(ctx,text,size){
+  function wrap(ctx, text, size){
     ctx.font=size+"px Arial";
     let words=text.split(" ");
-    let lines=[],line="";
+    let lines=[], line="";
 
     for(let w of words){
       let test=line+w+" ";
-      if(ctx.measureText(test).width>maxWidth){
+      if(ctx.measureText(test).width>maxW){
         lines.push(line);
         line=w+" ";
       } else line=test;
@@ -302,7 +303,7 @@ canvas.onclick=e=>{
 
   let lines=wrap(ctx,text,size);
 
-  while(lines.length*size>maxHeight && size>10){
+  while((lines.length*size>maxH || Math.max(...lines.map(l=>ctx.measureText(l).width))>maxW) && size>10){
     size--;
     lines=wrap(ctx,text,size);
   }
@@ -348,7 +349,7 @@ mapContainer.addEventListener("mousemove",e=>{
   preview.style.top=(p.y-85)+"px";
 });
 
-/* MOBILE DOUBLE TAP */
+/* MOBILE DOUBLE TAP PLACE */
 mapContainer.addEventListener("touchstart",e=>{
   if(!placing)return;
 
@@ -366,12 +367,13 @@ mapContainer.addEventListener("touchstart",e=>{
   lastTap=now;
 });
 
-/* PLACE */
+/* CLICK PLACE */
 mapContainer.addEventListener("click",e=>{
   if(!placing)return;
   placeFinal(getPos(e.clientX,e.clientY));
 });
 
+/* PLACE */
 function placeFinal(p){
   const r=push(notesRef);
   const data={
@@ -389,7 +391,7 @@ function placeFinal(p){
   preview.remove();
 }
 
-/* NOTE */
+/* NOTE (FULL RESTORED VERSION) */
 function createNote(id,d){
   const n=document.createElement("div");
   n.className="note";
@@ -402,8 +404,35 @@ function createNote(id,d){
   const content=document.createElement("img");
   content.src=d.image;
 
+  const flag=document.createElement("div");
+  flag.className="reportBtn";
+  flag.innerHTML='<i class="fa-solid fa-flag" style="color:red;"></i>';
+
+  flag.onclick=e=>{
+    e.stopPropagation();
+    update(ref(db,"notes/"+id),{reported:true});
+  };
+
+  n.onclick=()=>{
+    n.classList.toggle("zoom");
+
+    let existing=n.querySelector(".dateTag");
+
+    if(n.classList.contains("zoom")){
+      if(!existing){
+        const tag=document.createElement("div");
+        tag.className="dateTag";
+        tag.innerText=new Date(d.created).toLocaleDateString();
+        n.appendChild(tag);
+      }
+    } else {
+      if(existing) existing.remove();
+    }
+  };
+
   n.appendChild(bg);
   n.appendChild(content);
+  n.appendChild(flag);
   map.appendChild(n);
 }
 
