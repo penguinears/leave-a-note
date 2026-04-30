@@ -46,7 +46,6 @@ body { margin:0; font-family:Arial; }
   inset:0;
   overflow:scroll;
   background:#f5f5f5;
-  touch-action: pan-x pan-y;
 }
 
 #map {
@@ -162,7 +161,7 @@ body { margin:0; font-family:Arial; }
 
 <div id="editor">
   <div id="cancelBtn">
-    <i class="fa-solid fa-circle-xmark" style="color:#1e3050;"></i>
+    <i class="fa-solid fa-circle-xmark"></i>
   </div>
 
   <canvas id="canvas" width="500" height="500"></canvas>
@@ -232,17 +231,17 @@ document.getElementById("cancelBtn").onclick=()=>{
 
 window.setTool=t=>tool=t;
 
-/* POINTER DRAW (FIXED) */
-canvas.addEventListener("pointerdown", e=>{
+/* DRAW (pointer = mobile + desktop) */
+canvas.onpointerdown=e=>{
   drawing=true;
-  const rect=canvas.getBoundingClientRect();
+  const r=canvas.getBoundingClientRect();
   ctx.beginPath();
-  ctx.moveTo(e.clientX-rect.left, e.clientY-rect.top);
-});
+  ctx.moveTo(e.clientX-r.left,e.clientY-r.top);
+};
 
-canvas.addEventListener("pointermove", e=>{
+canvas.onpointermove=e=>{
   if(!drawing)return;
-  const rect=canvas.getBoundingClientRect();
+  const r=canvas.getBoundingClientRect();
 
   if(tool==="erase"){
     ctx.globalCompositeOperation="destination-out";
@@ -253,16 +252,16 @@ canvas.addEventListener("pointermove", e=>{
     ctx.lineWidth=3;
   }
 
-  ctx.lineTo(e.clientX-rect.left, e.clientY-rect.top);
+  ctx.lineTo(e.clientX-r.left,e.clientY-r.top);
   ctx.stroke();
-});
+};
 
-canvas.addEventListener("pointerup", ()=>{
+canvas.onpointerup=()=>{
   drawing=false;
   ctx.globalCompositeOperation="source-over";
-});
+};
 
-/* TEXT */
+/* TEXT (FULL VERSION BACK) */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
@@ -288,7 +287,7 @@ canvas.onclick=e=>{
 
   let lines=wrap(text);
 
-  while(lines.length*size>420&&size>10){
+  while(lines.length*size>420 && size>10){
     size--;
     lines=wrap(text);
   }
@@ -318,28 +317,32 @@ window.finishNote=()=>{
 };
 
 /* POSITION */
-function getPos(e){
+function getPos(clientX,clientY){
   const rect=map.getBoundingClientRect();
   return {
-    x:e.clientX-rect.left+mapContainer.scrollLeft,
-    y:e.clientY-rect.top+mapContainer.scrollTop
+    x:clientX-rect.left+mapContainer.scrollLeft,
+    y:clientY-rect.top+mapContainer.scrollTop
   };
 }
 
-/* PREVIEW */
-mapContainer.addEventListener("pointermove",e=>{
-  if(!placing||!preview)return;
-  const p=getPos(e);
+/* TOUCH + MOUSE PREVIEW */
+mapContainer.addEventListener("mousemove",e=>{
+  if(!placing)return;
+  const p=getPos(e.clientX,e.clientY);
+  preview.style.left=(p.x-85)+"px";
+  preview.style.top=(p.y-85)+"px";
+});
+
+mapContainer.addEventListener("touchmove",e=>{
+  if(!placing)return;
+  const t=e.touches[0];
+  const p=getPos(t.clientX,t.clientY);
   preview.style.left=(p.x-85)+"px";
   preview.style.top=(p.y-85)+"px";
 });
 
 /* PLACE */
-mapContainer.addEventListener("pointerup",e=>{
-  if(!placing)return;
-
-  const p=getPos(e);
-
+function placeFinal(p){
   const r=push(notesRef);
   const data={
     x:p.x-85,
@@ -354,6 +357,17 @@ mapContainer.addEventListener("pointerup",e=>{
 
   placing=false;
   preview.remove();
+}
+
+mapContainer.addEventListener("click",e=>{
+  if(!placing)return;
+  placeFinal(getPos(e.clientX,e.clientY));
+});
+
+mapContainer.addEventListener("touchend",e=>{
+  if(!placing)return;
+  const t=e.changedTouches[0];
+  placeFinal(getPos(t.clientX,t.clientY));
 });
 
 /* NOTE */
@@ -388,14 +402,9 @@ function createNote(id,d){
         const dTag=document.createElement("div");
         dTag.className="dateTag";
 
-        let text="Unknown date";
-        if(d.created){
-          const date=new Date(d.created);
-          text=date.toLocaleDateString();
+        const date=new Date(d.created);
+        dTag.innerText=date.toLocaleDateString();
 
-        }
-
-        dTag.innerText=text;
         n.appendChild(dTag);
       }
     } else {
