@@ -32,14 +32,6 @@ body { margin:0; font-family:Arial; }
   max-width:420px;
 }
 
-@media (max-width:600px){
-  #home img.update {
-    width:55%;
-    bottom:12px;
-    right:12px;
-  }
-}
-
 /* MAP */
 #map-container {
   position:fixed;
@@ -90,7 +82,6 @@ body { margin:0; font-family:Arial; }
   z-index:9999;
 }
 
-/* REPORT */
 .reportBtn {
   position:absolute;
   bottom:5px;
@@ -98,11 +89,8 @@ body { margin:0; font-family:Arial; }
   display:none;
 }
 
-.note.zoom .reportBtn {
-  display:block;
-}
+.note.zoom .reportBtn { display:block; }
 
-/* DATE */
 .dateTag {
   position:absolute;
   bottom:5px;
@@ -231,7 +219,7 @@ document.getElementById("cancelBtn").onclick=()=>{
 
 window.setTool=t=>tool=t;
 
-/* DRAW (pointer = mobile + desktop) */
+/* DRAW */
 canvas.onpointerdown=e=>{
   drawing=true;
   const r=canvas.getBoundingClientRect();
@@ -261,7 +249,7 @@ canvas.onpointerup=()=>{
   ctx.globalCompositeOperation="source-over";
 };
 
-/* TEXT (FULL VERSION BACK) */
+/* TEXT FULL FIX */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
@@ -270,33 +258,42 @@ canvas.onclick=e=>{
 
   let size=parseInt(fontSize.value);
   let maxWidth=420;
+  let maxHeight=420;
 
-  function wrap(t){
+  function wrapText(t, size){
     ctx.font=size+"px Arial";
-    let words=t.split(" "),lines=[],line="";
+    let words=t.split(" ");
+    let lines=[];
+    let line="";
+
     for(let w of words){
       let test=line+w+" ";
       if(ctx.measureText(test).width>maxWidth){
-        lines.push(line);
+        lines.push(line.trim());
         line=w+" ";
-      } else line=test;
+      } else {
+        line=test;
+      }
     }
-    lines.push(line);
+
+    lines.push(line.trim());
     return lines;
   }
 
-  let lines=wrap(text);
+  let lines=wrapText(text,size);
 
-  while(lines.length*size>420 && size>10){
+  while(lines.length * size > maxHeight && size > 10){
     size--;
-    lines=wrap(text);
+    lines=wrapText(text,size);
   }
 
   ctx.font=size+"px Arial";
   ctx.fillStyle=colorPicker.value;
 
-  lines.forEach((l,i)=>{
-    ctx.fillText(l,e.offsetX,e.offsetY+i*size);
+  let lineHeight=size*1.2;
+
+  lines.forEach((line,i)=>{
+    ctx.fillText(line,e.offsetX,e.offsetY+(i*lineHeight));
   });
 };
 
@@ -325,7 +322,7 @@ function getPos(clientX,clientY){
   };
 }
 
-/* TOUCH + MOUSE PREVIEW */
+/* PREVIEW */
 mapContainer.addEventListener("mousemove",e=>{
   if(!placing)return;
   const p=getPos(e.clientX,e.clientY);
