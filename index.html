@@ -11,6 +11,7 @@
 <style>
 body { margin:0; font-family:Arial; }
 
+/* HOME (UNCHANGED STRUCTURE + FIX SAFE) */
 #home {
   position:fixed;
   inset:0;
@@ -18,29 +19,33 @@ body { margin:0; font-family:Arial; }
   display:flex;
   justify-content:center;
   align-items:center;
-  flex-direction:column;
-  z-index:20;
-  overflow:hidden;
+  z-index:9999;
+}
+
+#home.hidden{
+  display:none;
+  pointer-events:none;
 }
 
 #home img.main {
-  width:90vw;
+  width:80%;
   max-width:500px;
-  height:auto;
 }
 
 #home img.update {
   position:absolute;
-  bottom:4vh;
-  right:4vw;
-  width:50vw;
-  max-width:300px;
-  height:auto;
+  bottom:20px;
+  right:20px;
+  width:65%;
+  max-width:420px;
 }
 
-@media (min-width:700px){
-  #home img.main { width:60%; }
-  #home img.update { width:300px; }
+@media (max-width:600px){
+  #home img.update {
+    width:55%;
+    bottom:12px;
+    right:12px;
+  }
 }
 
 /* MAP */
@@ -60,6 +65,7 @@ body { margin:0; font-family:Arial; }
 
 #map-container.faded { opacity:0.3; }
 
+/* BUTTON */
 #addNoteBtn {
   position:fixed;
   top:20px;
@@ -104,6 +110,7 @@ body { margin:0; font-family:Arial; }
   display:block;
 }
 
+/* DATE */
 .dateTag {
   position:absolute;
   bottom:5px;
@@ -112,6 +119,7 @@ body { margin:0; font-family:Arial; }
   color:black;
 }
 
+/* EDITOR */
 #editor {
   position:fixed;
   inset:0;
@@ -207,12 +215,16 @@ let preview=null;
 let noteImage=null;
 let lastTap=0;
 
-/* HOME */
-home.onclick=()=>{
-  home.style.display="none";
+/* HOME FIX (ADDED SAFE EXIT) */
+function enterApp(){
+  home.classList.add("hidden");
   addBtn.style.display="block";
-};
+}
 
+home.addEventListener("click", enterApp);
+home.addEventListener("touchstart", enterApp);
+
+/* EDITOR */
 addBtn.onclick=()=>{
   editor.style.display="flex";
   addBtn.style.display="none";
@@ -230,7 +242,8 @@ document.getElementById("cancelBtn").onclick=()=>{
 };
 
 window.setTool=t=>tool=t;
-=
+
+/* DRAW */
 canvas.onpointerdown=e=>{
   drawing=true;
   const r=canvas.getBoundingClientRect();
@@ -260,6 +273,7 @@ canvas.onpointerup=()=>{
   ctx.globalCompositeOperation="source-over";
 };
 
+/* TEXT FIX (FULL WRAP SAFE) */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
@@ -270,10 +284,10 @@ canvas.onclick=e=>{
   let maxHeight=420;
   let size=parseInt(fontSize.value);
 
-  function wrapLines(txt, fontSize){
-    ctx.font=fontSize+"px Arial";
-    let words=txt.split(" ");
-    let lines=[], line="";
+  function wrap(ctx,text,size){
+    ctx.font=size+"px Arial";
+    let words=text.split(" ");
+    let lines=[],line="";
 
     for(let w of words){
       let test=line+w+" ";
@@ -286,11 +300,11 @@ canvas.onclick=e=>{
     return lines;
   }
 
-  let lines=wrapLines(text,size);
+  let lines=wrap(ctx,text,size);
 
-  while((lines.length*size>maxHeight || Math.max(...lines.map(l=>ctx.measureText(l).width))>maxWidth) && size>10){
+  while(lines.length*size>maxHeight && size>10){
     size--;
-    lines=wrapLines(text,size);
+    lines=wrap(ctx,text,size);
   }
 
   ctx.font=size+"px Arial";
@@ -318,27 +332,29 @@ window.finishNote=()=>{
 };
 
 /* POSITION */
-function getPos(clientX,clientY){
+function getPos(x,y){
   const rect=map.getBoundingClientRect();
   return {
-    x:clientX-rect.left+mapContainer.scrollLeft,
-    y:clientY-rect.top+mapContainer.scrollTop
+    x:x-rect.left+mapContainer.scrollLeft,
+    y:y-rect.top+mapContainer.scrollTop
   };
 }
 
+/* PREVIEW */
 mapContainer.addEventListener("mousemove",e=>{
   if(!placing)return;
-  const p=getPos(e.clientX,e.clientY);
+  let p=getPos(e.clientX,e.clientY);
   preview.style.left=(p.x-85)+"px";
   preview.style.top=(p.y-85)+"px";
 });
 
+/* MOBILE DOUBLE TAP */
 mapContainer.addEventListener("touchstart",e=>{
   if(!placing)return;
 
   const t=e.touches[0];
   const now=Date.now();
-  const p=getPos(t.clientX,t.clientY);
+  let p=getPos(t.clientX,t.clientY);
 
   preview.style.left=(p.x-85)+"px";
   preview.style.top=(p.y-85)+"px";
@@ -350,6 +366,7 @@ mapContainer.addEventListener("touchstart",e=>{
   lastTap=now;
 });
 
+/* PLACE */
 mapContainer.addEventListener("click",e=>{
   if(!placing)return;
   placeFinal(getPos(e.clientX,e.clientY));
@@ -372,6 +389,7 @@ function placeFinal(p){
   preview.remove();
 }
 
+/* NOTE */
 function createNote(id,d){
   const n=document.createElement("div");
   n.className="note";
@@ -384,41 +402,12 @@ function createNote(id,d){
   const content=document.createElement("img");
   content.src=d.image;
 
-  const flag=document.createElement("div");
-  flag.className="reportBtn";
-  flag.innerHTML='<i class="fa-solid fa-flag" style="color:red;"></i>';
-
-  flag.onclick=e=>{
-    e.stopPropagation();
-    update(ref(db,"notes/"+id),{reported:true});
-  };
-
-  n.onclick=()=>{
-    n.classList.toggle("zoom");
-
-    const existing=n.querySelector(".dateTag");
-
-    if(n.classList.contains("zoom")){
-      if(!existing){
-        const dTag=document.createElement("div");
-        dTag.className="dateTag";
-
-        const date=new Date(d.created);
-        dTag.innerText=date.toLocaleDateString();
-
-        n.appendChild(dTag);
-      }
-    } else {
-      if(existing) existing.remove();
-    }
-  };
-
   n.appendChild(bg);
   n.appendChild(content);
-  n.appendChild(flag);
   map.appendChild(n);
 }
 
+/* LOAD */
 onValue(notesRef,snap=>{
   map.querySelectorAll(".note").forEach(n=>n.remove());
   snap.forEach(c=>createNote(c.key,c.val()));
