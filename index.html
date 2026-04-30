@@ -11,25 +11,37 @@
 <style>
 body { margin:0; font-family:Arial; }
 
-/* HOME */
+/* HOME (FIXED MOBILE SCALING) */
 #home {
-  position:fixed; inset:0;
+  position:fixed;
+  inset:0;
   background:white;
-  display:flex; justify-content:center; align-items:center;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
   z-index:20;
+  overflow:hidden;
 }
 
 #home img.main {
-  width:80%;
+  width:90vw;
   max-width:500px;
+  height:auto;
 }
 
 #home img.update {
   position:absolute;
-  bottom:20px;
-  right:20px;
-  width:65%;
-  max-width:420px;
+  bottom:4vh;
+  right:4vw;
+  width:50vw;
+  max-width:300px;
+  height:auto;
+}
+
+@media (min-width:700px){
+  #home img.main { width:60%; }
+  #home img.update { width:300px; }
 }
 
 /* MAP */
@@ -82,6 +94,7 @@ body { margin:0; font-family:Arial; }
   z-index:9999;
 }
 
+/* REPORT */
 .reportBtn {
   position:absolute;
   bottom:5px;
@@ -89,8 +102,11 @@ body { margin:0; font-family:Arial; }
   display:none;
 }
 
-.note.zoom .reportBtn { display:block; }
+.note.zoom .reportBtn {
+  display:block;
+}
 
+/* DATE */
 .dateTag {
   position:absolute;
   bottom:5px;
@@ -193,6 +209,7 @@ let drawing=false;
 let placing=false;
 let preview=null;
 let noteImage=null;
+let lastTap=0;
 
 /* HOME */
 home.onclick=()=>{
@@ -249,51 +266,45 @@ canvas.onpointerup=()=>{
   ctx.globalCompositeOperation="source-over";
 };
 
-/* TEXT FULL FIX */
+/* TEXT AUTO FIT */
 canvas.onclick=e=>{
   if(tool!=="text")return;
 
   let text=prompt("Text:");
   if(!text)return;
 
-  let size=parseInt(fontSize.value);
   let maxWidth=420;
   let maxHeight=420;
+  let size=parseInt(fontSize.value);
 
-  function wrapText(t, size){
-    ctx.font=size+"px Arial";
-    let words=t.split(" ");
-    let lines=[];
-    let line="";
+  function wrapLines(txt, fontSize){
+    ctx.font=fontSize+"px Arial";
+    let words=txt.split(" ");
+    let lines=[], line="";
 
     for(let w of words){
       let test=line+w+" ";
       if(ctx.measureText(test).width>maxWidth){
-        lines.push(line.trim());
+        lines.push(line);
         line=w+" ";
-      } else {
-        line=test;
-      }
+      } else line=test;
     }
-
-    lines.push(line.trim());
+    lines.push(line);
     return lines;
   }
 
-  let lines=wrapText(text,size);
+  let lines=wrapLines(text,size);
 
-  while(lines.length * size > maxHeight && size > 10){
+  while((lines.length*size>maxHeight || Math.max(...lines.map(l=>ctx.measureText(l).width))>maxWidth) && size>10){
     size--;
-    lines=wrapText(text,size);
+    lines=wrapLines(text,size);
   }
 
   ctx.font=size+"px Arial";
   ctx.fillStyle=colorPicker.value;
 
-  let lineHeight=size*1.2;
-
-  lines.forEach((line,i)=>{
-    ctx.fillText(line,e.offsetX,e.offsetY+(i*lineHeight));
+  lines.forEach((l,i)=>{
+    ctx.fillText(l.trim(),e.offsetX,e.offsetY+i*size);
   });
 };
 
@@ -322,7 +333,7 @@ function getPos(clientX,clientY){
   };
 }
 
-/* PREVIEW */
+/* MOUSE PREVIEW */
 mapContainer.addEventListener("mousemove",e=>{
   if(!placing)return;
   const p=getPos(e.clientX,e.clientY);
@@ -330,15 +341,31 @@ mapContainer.addEventListener("mousemove",e=>{
   preview.style.top=(p.y-85)+"px";
 });
 
-mapContainer.addEventListener("touchmove",e=>{
+/* MOBILE TAP + DOUBLE TAP */
+mapContainer.addEventListener("touchstart",e=>{
   if(!placing)return;
+
   const t=e.touches[0];
+  const now=Date.now();
   const p=getPos(t.clientX,t.clientY);
+
   preview.style.left=(p.x-85)+"px";
   preview.style.top=(p.y-85)+"px";
+
+  if(now-lastTap<300){
+    placeFinal(p);
+  }
+
+  lastTap=now;
 });
 
-/* PLACE */
+/* PLACE (DESKTOP) */
+mapContainer.addEventListener("click",e=>{
+  if(!placing)return;
+  placeFinal(getPos(e.clientX,e.clientY));
+});
+
+/* PLACE FUNCTION */
 function placeFinal(p){
   const r=push(notesRef);
   const data={
@@ -355,17 +382,6 @@ function placeFinal(p){
   placing=false;
   preview.remove();
 }
-
-mapContainer.addEventListener("click",e=>{
-  if(!placing)return;
-  placeFinal(getPos(e.clientX,e.clientY));
-});
-
-mapContainer.addEventListener("touchend",e=>{
-  if(!placing)return;
-  const t=e.changedTouches[0];
-  placeFinal(getPos(t.clientX,t.clientY));
-});
 
 /* NOTE */
 function createNote(id,d){
