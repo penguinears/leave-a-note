@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Leave A Note</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div id="home">
+  <img class="main" src="images/Leave_A_Note__1_-removebg-preview.png">
+  <img class="update" src="images/new_update-removebg-preview.png">
+</div>
+
+<div id="addNoteBtn" style="display:none;">CREATE NOTE</div>
+
+<div id="map-container">
+  <div id="map"></div>
+</div>
+
+<div id="editor">
+  <div id="cancelBtn">
+    <i class="fa-solid fa-circle-xmark"></i>
+  </div>
+
+  <canvas id="canvas" width="500" height="500"></canvas>
+
+  <div class="tools">
+    <i onclick="setTool('draw')" class="fa-solid fa-pen"></i>
+    <i onclick="setTool('erase')" class="fa-solid fa-eraser"></i>
+    <i onclick="setTool('text')" class="fa-solid fa-keyboard" style="color: rgb(30, 48, 80);"></i>
+    <input type="color" id="colorPicker">
+    <input type="range" id="fontSize" min="10" max="60" value="24">
+    <button onclick="finishNote()">Done</button>
+  </div>
+</div>
+
+<script type="module" src="script.js"></script>
+
+</body>
+</html>
