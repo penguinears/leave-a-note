@@ -2,10 +2,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getDatabase, ref, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const app = initializeApp({
-  apiKey:"AIza...",
-  authDomain:"antianti-69313.firebaseapp.com",
-  databaseURL:"https://antianti-69313-default-rtdb.firebaseio.com",
-  projectId:"antianti-69313"
+  apiKey: "AIzaSyBzk5p9naKjZndFHfqpldxGUMLBGzkDIsU",
+  authDomain: "antianti-69313.firebaseapp.com",
+  databaseURL: "https://antianti-69313-default-rtdb.firebaseio.com",
+  projectId: "antianti-69313",
+  storageBucket: "antianti-69313.firebasestorage.app",
+  messagingSenderId: "147709968684",
+  appId: "1:147709968684:web:696108f146ecda9b5eec89",
+  measurementId: "G-WXRNC9P09F"
 });
 
 const db = getDatabase(app);
@@ -156,8 +160,25 @@ canvas.onclick=e=>{
   ctx.font=size+"px Arial";
   ctx.fillStyle=colorPicker.value;
 
+  let startX = e.offsetX;
+  let startY = e.offsetY;
+  let y = startY;
+
   lines.forEach((l,i)=>{
-    ctx.fillText(l.trim(),e.offsetX,e.offsetY+i*size);
+    let w = ctx.measureText(l.trim()).width;
+
+    if(startX + w > 500){
+      startX = 10;
+      y += size;
+    }
+
+    if(y + size > 500){
+      size--;
+      ctx.font = size + "px Arial";
+    }
+
+    ctx.fillText(l.trim(), startX, y);
+    y += size;
   });
 };
 
