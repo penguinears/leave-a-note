@@ -1,0 +1,137 @@
+body { margin:0; font-family:Arial; }
+
+#home {
+  position:fixed;
+  inset:0;
+  background:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:20;
+  touch-action: manipulation;
+}
+
+#home img.main {
+  width:80%;
+  max-width:500px;
+}
+
+#home img.update {
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  width:65%;
+  max-width:420px;
+}
+
+@media (max-width:600px){
+  #home img.update {
+    width:55%;
+    bottom:12px;
+    right:12px;
+  }
+}
+
+#home.hidden{
+  display:none;
+  pointer-events:none;
+}
+
+#map-container {
+  position:fixed;
+  inset:0;
+  overflow:scroll;
+  background:#f5f5f5;
+}
+
+#map {
+  position:relative;
+  width:4000px;
+  height:4000px;
+  background:white;
+}
+
+#map-container.faded { opacity:0.3; }
+
+#addNoteBtn {
+  position:fixed;
+  top:20px;
+  left:20px;
+  padding:12px 20px;
+  background:#222;
+  color:white;
+  border-radius:8px;
+  cursor:pointer;
+  z-index:10;
+}
+
+.note {
+  position:absolute;
+  width:170px;
+  height:170px;
+  cursor:pointer;
+  transition:transform 0.2s;
+}
+
+.note img {
+  position:absolute;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+.note.zoom {
+  transform:scale(3);
+  z-index:9999;
+}
+
+.reportBtn {
+  position:absolute;
+  bottom:5px;
+  right:5px;
+  display:none;
+}
+
+.note.zoom .reportBtn {
+  display:block;
+}
+
+.dateTag {
+  position:absolute;
+  bottom:5px;
+  left:5px;
+  font-size:12px;
+  color:black;
+}
+
+#editor {
+  position:fixed;
+  inset:0;
+  background:rgba(255,255,255,0.9);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+}
+
+#canvas {
+  width:500px;
+  height:500px;
+  touch-action:none;
+  border:1px solid #ccc;
+}
+
+#cancelBtn {
+  position:absolute;
+  top:20px;
+  left:20px;
+  font-size:28px;
+  cursor:pointer;
+}
+
+.tools {
+  margin-top:10px;
+  display:flex;
+  gap:15px;
+  align-items:center;
+}
