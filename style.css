@@ -135,3 +135,33 @@ body { margin:0; font-family:Arial; }
   gap:15px;
   align-items:center;
 }
+.loading {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-size: 20px;
+  color: #555;
+  background: rgba(255,255,255,0.85);
+  padding: 10px 15px;
+  border-radius: 8px;
+  z-index: 9999;
+}
+
+.hidden {
+  display: none;
+}
+
+#bgCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+#canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+}
+
