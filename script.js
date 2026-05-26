@@ -324,4 +324,4 @@ function createNote(id,d){
 onValue(notesRef,snap=>{
   map.querySelectorAll(".note").forEach(n=>n.remove());
   snap.forEach(c=>createNote(c.key,c.val()));
-});  makje irt so it loadsa faster and before notes apear it says loading notes why not write a note in the meantimev create note should say write note instead makle iut sio the rubber doesnt rub out actaul note to
+});  
