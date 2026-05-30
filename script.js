@@ -1,3 +1,5 @@
+import { firebaseConfig } from "./images/firebase-config.js";
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getDatabase,
@@ -10,21 +12,11 @@ import {
   limitToLast
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const app = initializeApp({
-  apiKey: "AIzaSyBzk5p9naKJZndFHfqpldxGUMLBGzkDIsU",
-  authDomain: "antianti-69313.firebaseapp.com",
-  databaseURL: "https://antianti-69313-default-rtdb.firebaseio.com",
-  projectId: "antianti-69313",
-  storageBucket: "antianti-69313.firebasestorage.app",
-  messagingSenderId: "147709968684",
-  appId: "1:147709968684:web:696108f146ecda9b5eec89",
-  measurementId: "G-WXRNC9P09F"
-});
+const app = initializeApp(firebaseConfig);
 
 const db = getDatabase(app);
 const notesRef = ref(db, "notes");
 
-// ⚡ load last chunk first (faster initial render)
 const notesQuery = query(notesRef, limitToLast(200));
 
 const home = document.getElementById("home");
@@ -110,7 +102,7 @@ canvas.onpointerup = () => {
   ctx.globalCompositeOperation = "source-over";
 };
 
-/* ---------------- TEXT TOOL ---------------- */
+
 
 canvas.onclick = e => {
   if (tool !== "text") return;
@@ -159,14 +151,14 @@ canvas.onclick = e => {
   });
 };
 
-/* ---------------- SAVE NOTE ---------------- */
+
 
 window.finishNote = () => {
   editor.style.display = "none";
   addBtn.style.display = "block";
   mapContainer.classList.remove("faded");
 
-  // ⚡ compressed image (massive speed + size improvement)
+  
   noteImage = canvas.toDataURL("image/webp", 0.6);
 
   placing = true;
@@ -196,8 +188,6 @@ function getPos(x, y) {
     y: y - rect.top + mapContainer.scrollTop
   };
 }
-
-/* ---------------- MOVE PREVIEW ---------------- */
 
 mapContainer.addEventListener("pointermove", e => {
   if (!placing || !preview) return;
@@ -239,7 +229,7 @@ function placeFinal(p) {
   if (preview) preview.remove();
 }
 
-/* ---------------- CREATE NOTE ---------------- */
+
 
 function createNote(id, d) {
   if (document.getElementById(id)) return; // avoid duplicates
@@ -290,8 +280,6 @@ function createNote(id, d) {
 
   map.appendChild(n);
 }
-
-/* ---------------- FIREBASE LISTENER (FAST VERSION) ---------------- */
 
 onValue(notesQuery, snap => {
   snap.forEach(c => {
