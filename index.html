@@ -18,20 +18,18 @@
 
 <link rel="canonical" href="https://leaveanote.xyz/">
 
-<!-- Open Graph -->
+
 <meta property="og:title" content="Leave A Note">
 <meta property="og:description" content="Leave a message for the people who come after.">
 <meta property="og:image" content="https://leaveanote.xyz/images/preview.png">
 <meta property="og:url" content="https://leaveanote.xyz/">
 <meta property="og:type" content="website">
 
-<!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Leave A Note">
 <meta name="twitter:description" content="Leave your note on the World wide web for generations to see after you.">
 <meta name="twitter:image" content="https://leaveanote.xyz/images/preview.png">
 
-<!-- Schema -->
 <script type="application/ld+json">
 {
 "@context":"https://schema.org",
@@ -76,6 +74,56 @@
 </div>
 
 <script type="module" src="script.js"></script>
+<!-- celebration for 100 notes lets gogoogogogogoooo -->
+<div id="Banner">
+     🎉 🎉 Thank you everyone for 100 notes! They have all<small>(mostly)</small> been so fun to read!, but with this amount of notes comes problems
+  as its stressfull on the databace. We have been refining the loading system to try make it load fast but dont worry i fit takes a while, write a note in the meantime.🥳🥳 <br>
+    
+</div>
+
+<style>
+#Banner{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(20,20,20,.9);
+    color:#fff;
+    padding:15px 25px;
+    border-radius:18px;
+    text-align:center;
+    font-family:Arial,sans-serif;
+    font-size:18px;
+    line-height:1.4;
+    z-index:99999;
+    transition:opacity .35s ease, transform .35s ease;
+    max-width:90%;
+    box-shadow:0 8px 25px rgba(0,0,0,.35);
+    user-select:none;
+    pointer-events:none;
+}
+
+#Banner.hide{
+    opacity:0;
+    transform:translateX(-50%) translateY(40px);
+}
+
+#Banner small{
+    opacity:.8;
+    font-size:14px;
+}
+</style>
+
+<script>
+const banner=document.getElementById("Banner");
+
+function hideBanner(){
+    banner.classList.add("hide");
+    setTimeout(()=>banner.remove(),350);
+}
+
+document.addEventListener("pointerdown",hideBanner,{once:true});
+</script>
 
 </body>
 </html>
