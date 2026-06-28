@@ -39,17 +39,15 @@ let draggingPreview = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
-
 let notesLoaded = false;
-
 
 const loadingPrompt = document.createElement("div");
 loadingPrompt.id = "loadingPrompt";
 loadingPrompt.innerHTML = `
   <div class="box">
-    <h2>Still loading notes...</h2>
-    <p>
-      You can <u id="writeNoteLink" style="cursor:pointer;">write a note</u> while you wait.
+    <h2 style="color:black;">Still loading notes...</h2>
+    <p style="color:black;">
+      You can <u id="writeNoteLink" style="cursor:pointer;color:black;">write a note</u> while you wait.
     </p>
   </div>
 `;
@@ -61,24 +59,19 @@ style.textContent = `
 #loadingPrompt{
   position:fixed;
   inset:0;
-  background:rgba(0,0,0,0.6);
+  background:transparent; /* NO BACKGROUND */
   display:none;
   align-items:center;
   justify-content:center;
   z-index:999999;
   font-family:Arial;
-  color:white;
 }
 
 #loadingPrompt .box{
-  background:#111;
+  background:transparent; /* NO BOX BACKGROUND */
   padding:20px 25px;
   border-radius:12px;
   text-align:center;
-}
-
-#loadingPrompt u{
-  color:#4da3ff;
 }
 
 #loadingPrompt u:hover{
@@ -87,7 +80,6 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-/* click underline -> open editor */
 document.addEventListener("click", (e) => {
   if (e.target && e.target.id === "writeNoteLink") {
     loadingPrompt.style.display = "none";
@@ -95,18 +87,19 @@ document.addEventListener("click", (e) => {
   }
 });
 
-/* show popup if still loading */
 setTimeout(() => {
-  if (!notesLoaded) {
+  if (!notesLoaded && loadingPrompt.dataset.ready === "yes") {
     loadingPrompt.style.display = "flex";
   }
 }, 2000);
 
 
-
 function enterApp() {
   home.classList.add("hidden");
   addBtn.style.display = "block";
+
+  /* allow loading popup only after user enters app */
+  loadingPrompt.dataset.ready = "yes";
 }
 
 home.addEventListener("click", enterApp);
@@ -122,7 +115,13 @@ addBtn.onclick = () => {
 
   img.onload = () => {
     ctx.clearRect(0, 0, 500, 500);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(img, 0, 0, 500, 500);
+    ctx.restore();
+
+    noteScale = img.width / 500; /* used for typing tool only */
   };
 };
 
@@ -134,7 +133,7 @@ document.getElementById("cancelBtn").onclick = () => {
 
 window.setTool = t => tool = t;
 
-/* ---------------- DRAW ---------------- */
+let noteScale = 1;
 
 canvas.onpointerdown = e => {
   drawing = true;
@@ -154,9 +153,7 @@ canvas.onpointermove = e => {
     ctx.strokeStyle = colorPicker.value;
   }
 
-  let scale = parseInt(fontSize.value || "24", 10) / 24;
-
-  ctx.lineWidth = (tool === "erase" ? 25 : 3) * scale;
+  ctx.lineWidth = tool === "erase" ? 25 : 3;
 
   ctx.lineTo(e.clientX - r.left, e.clientY - r.top);
   ctx.stroke();
@@ -174,8 +171,13 @@ canvas.onclick = e => {
   if (!text) return;
 
   let size = parseInt(fontSize.value);
-  const maxW = 420;
-  const maxH = 420;
+
+  /* ONLY typing tool scales */
+  let scale = noteScale || 1;
+  size = size * scale;
+
+  const maxW = 420 * scale;
+  const maxH = 420 * scale;
 
   function wrap(text, size) {
     ctx.font = size + "px Arial";
@@ -198,7 +200,11 @@ canvas.onclick = e => {
 
   let lines = wrap(text, size);
 
-  while ((lines.length * size > maxH || Math.max(...lines.map(l => ctx.measureText(l).width)) > maxW) && size > 10) {
+  while (
+    (lines.length * size > maxH ||
+    Math.max(...lines.map(l => ctx.measureText(l).width)) > maxW) &&
+    size > 10
+  ) {
     size--;
     lines = wrap(text, size);
   }
@@ -344,6 +350,5 @@ onValue(notesQuery, snap => {
     createNote(c.key, c.val());
   });
 
-  /* ADDED */
   notesLoaded = true;
 });
