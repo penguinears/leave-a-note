@@ -39,6 +39,71 @@ let draggingPreview = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
+
+let notesLoaded = false;
+
+
+const loadingPrompt = document.createElement("div");
+loadingPrompt.id = "loadingPrompt";
+loadingPrompt.innerHTML = `
+  <div class="box">
+    <h2>Still loading notes...</h2>
+    <p>
+      You can <u id="writeNoteLink" style="cursor:pointer;">write a note</u> while you wait.
+    </p>
+  </div>
+`;
+
+document.body.appendChild(loadingPrompt);
+
+const style = document.createElement("style");
+style.textContent = `
+#loadingPrompt{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:999999;
+  font-family:Arial;
+  color:white;
+}
+
+#loadingPrompt .box{
+  background:#111;
+  padding:20px 25px;
+  border-radius:12px;
+  text-align:center;
+}
+
+#loadingPrompt u{
+  color:#4da3ff;
+}
+
+#loadingPrompt u:hover{
+  opacity:0.8;
+}
+`;
+document.head.appendChild(style);
+
+/* click underline -> open editor */
+document.addEventListener("click", (e) => {
+  if (e.target && e.target.id === "writeNoteLink") {
+    loadingPrompt.style.display = "none";
+    addBtn.click();
+  }
+});
+
+/* show popup if still loading */
+setTimeout(() => {
+  if (!notesLoaded) {
+    loadingPrompt.style.display = "flex";
+  }
+}, 2000);
+
+
+
 function enterApp() {
   home.classList.add("hidden");
   addBtn.style.display = "block";
@@ -102,8 +167,6 @@ canvas.onpointerup = () => {
   ctx.globalCompositeOperation = "source-over";
 };
 
-
-
 canvas.onclick = e => {
   if (tool !== "text") return;
 
@@ -151,14 +214,11 @@ canvas.onclick = e => {
   });
 };
 
-
-
 window.finishNote = () => {
   editor.style.display = "none";
   addBtn.style.display = "block";
   mapContainer.classList.remove("faded");
 
-  
   noteImage = canvas.toDataURL("image/webp", 0.6);
 
   placing = true;
@@ -229,10 +289,8 @@ function placeFinal(p) {
   if (preview) preview.remove();
 }
 
-
-
 function createNote(id, d) {
-  if (document.getElementById(id)) return; // avoid duplicates
+  if (document.getElementById(id)) return;
 
   const n = document.createElement("div");
   n.className = "note";
@@ -285,4 +343,7 @@ onValue(notesQuery, snap => {
   snap.forEach(c => {
     createNote(c.key, c.val());
   });
+
+  /* ADDED */
+  notesLoaded = true;
 });
