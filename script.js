@@ -59,7 +59,7 @@ style.textContent = `
 #loadingPrompt{
   position:fixed;
   inset:0;
-  background:transparent; /* NO BACKGROUND */
+  background:transparent;
   display:none;
   align-items:center;
   justify-content:center;
@@ -68,7 +68,7 @@ style.textContent = `
 }
 
 #loadingPrompt .box{
-  background:transparent; /* NO BOX BACKGROUND */
+  background:transparent;
   padding:20px 25px;
   border-radius:12px;
   text-align:center;
@@ -83,7 +83,24 @@ document.head.appendChild(style);
 document.addEventListener("click", (e) => {
   if (e.target && e.target.id === "writeNoteLink") {
     loadingPrompt.style.display = "none";
-    addBtn.click();
+
+    editor.style.display = "flex";
+    addBtn.style.display = "none";
+    mapContainer.classList.add("faded");
+
+    const img = new Image();
+    img.src = "images/Untitled design.jpg";
+
+    img.onload = () => {
+      ctx.clearRect(0, 0, 500, 500);
+
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.drawImage(img, 0, 0, 500, 500);
+      ctx.restore();
+
+      noteScale = img.width / 500;
+    };
   }
 });
 
@@ -93,12 +110,10 @@ setTimeout(() => {
   }
 }, 2000);
 
-
 function enterApp() {
   home.classList.add("hidden");
   addBtn.style.display = "block";
 
-  /* allow loading popup only after user enters app */
   loadingPrompt.dataset.ready = "yes";
 }
 
@@ -121,7 +136,7 @@ addBtn.onclick = () => {
     ctx.drawImage(img, 0, 0, 500, 500);
     ctx.restore();
 
-    noteScale = img.width / 500; /* used for typing tool only */
+    noteScale = img.width / 500;
   };
 };
 
@@ -172,7 +187,6 @@ canvas.onclick = e => {
 
   let size = parseInt(fontSize.value);
 
-  /* ONLY typing tool scales */
   let scale = noteScale || 1;
   size = size * scale;
 
@@ -350,5 +364,18 @@ onValue(notesQuery, snap => {
     createNote(c.key, c.val());
   });
 
-  notesLoaded = true;
+  let first = true;
+
+  snap.forEach(() => {
+    if (first) {
+      first = false;
+      notesLoaded = true;
+      loadingPrompt.style.display = "none";
+    }
+  });
+
+  if (snap.size === 0) {
+    notesLoaded = true;
+    loadingPrompt.style.display = "none";
+  }
 });
